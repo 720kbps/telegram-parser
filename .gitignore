@@ -169,3 +169,8 @@ cython_debug/
 
 # PyPI configuration file
 .pypirc
+
+# Chat exports are private, keep them out of git
+data/
+ChatExport*/
+.DS_Store

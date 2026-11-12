@@ -1,0 +1,139 @@
+{
+ "name": "Sam",
+ "type": "personal_chat",
+ "id": 1002,
+ "messages": [
+  {
+   "id": 1,
+   "type": "message",
+   "date": "2023-01-05T21:14:03",
+   "date_unixtime": "1672946043",
+   "from": "Alex",
+   "from_id": "user1001",
+   "text": "hey, is this the right chat?",
+   "text_entities": [{"type": "plain", "text": "hey, is this the right chat?"}]
+  },
+  {
+   "id": 2,
+   "type": "message",
+   "date": "2023-01-05T21:15:10",
+   "date_unixtime": "1672946110",
+   "from": "Sam",
+   "from_id": "user1002",
+   "text": "yes 😄",
+   "text_entities": [{"type": "plain", "text": "yes 😄"}]
+  },
+  {
+   "id": 3,
+   "type": "message",
+   "date": "2023-01-05T21:15:40",
+   "date_unixtime": "1672946140",
+   "from": "Sam",
+   "from_id": "user1002",
+   "text": ["check this out ", {"type": "link", "text": "https://example.com"}],
+   "text_entities": [
+    {"type": "plain", "text": "check this out "},
+    {"type": "link", "text": "https://example.com"}
+   ]
+  },
+  {
+   "id": 4,
+   "type": "message",
+   "date": "2023-01-05T21:16:02",
+   "date_unixtime": "1672946162",
+   "from": "Alex",
+   "from_id": "user1001",
+   "text": "haha",
+   "text_entities": [{"type": "plain", "text": "haha"}]
+  },
+  {
+   "id": 5,
+   "type": "service",
+   "date": "2023-01-05T21:20:00",
+   "date_unixtime": "1672946400",
+   "actor": "Alex",
+   "actor_id": "user1001",
+   "action": "phone_call",
+   "duration_seconds": 300,
+   "text": "",
+   "text_entities": []
+  },
+  {
+   "id": 6,
+   "type": "message",
+   "date": "2023-01-06T09:02:11",
+   "date_unixtime": "1672995731",
+   "from": "Alex",
+   "from_id": "user1001",
+   "file": "voice_messages/audio_1@06-01-2023_09-02-11.ogg",
+   "media_type": "voice_message",
+   "mime_type": "audio/ogg",
+   "duration_seconds": 42,
+   "text": "",
+   "text_entities": []
+  },
+  {
+   "id": 7,
+   "type": "message",
+   "date": "2023-01-06T09:05:00",
+   "date_unixtime": "1672995900",
+   "from": "Sam",
+   "from_id": "user1002",
+   "file": "round_video_messages/file_1@06-01-2023_09-05-00.mp4",
+   "media_type": "video_message",
+   "mime_type": "video/mp4",
+   "duration_seconds": 15,
+   "text": "",
+   "text_entities": []
+  },
+  {
+   "id": 8,
+   "type": "message",
+   "date": "2023-01-06T09:06:00",
+   "date_unixtime": "1672995960",
+   "from": "Sam",
+   "from_id": "user1002",
+   "file": "stickers/sticker.webp",
+   "media_type": "sticker",
+   "sticker_emoji": "😂",
+   "text": "",
+   "text_entities": []
+  },
+  {
+   "id": 9,
+   "type": "message",
+   "date": "2023-02-14T18:30:00",
+   "date_unixtime": "1676392200",
+   "from": "Alex",
+   "from_id": "user1001",
+   "photo": "photos/photo_1@14-02-2023_18-30-00.jpg",
+   "width": 1280,
+   "height": 960,
+   "text": "look",
+   "text_entities": [{"type": "plain", "text": "look"}]
+  },
+  {
+   "id": 10,
+   "type": "message",
+   "date": "2023-02-14T18:31:00",
+   "date_unixtime": "1676392260",
+   "from": "Sam",
+   "from_id": "user1002",
+   "file": "voice_messages/audio_2@14-02-2023_18-31-00.ogg",
+   "media_type": "voice_message",
+   "mime_type": "audio/ogg",
+   "duration_seconds": 18,
+   "text": "",
+   "text_entities": []
+  },
+  {
+   "id": 11,
+   "type": "message",
+   "date": "2023-02-14T18:32:00",
+   "date_unixtime": "1676392320",
+   "from": "Sam",
+   "from_id": "user1002",
+   "text": "nice"
+  }
+ ]
+}
