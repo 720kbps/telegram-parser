@@ -13,44 +13,57 @@ fields you don't recognise.
 
 A fake example covering most cases is in [`samples/sample_chat.json`](samples/sample_chat.json).
 
+## At a glance
+
+```text
+result.json
+├── name, type, id                 about the chat                              §1
+└── messages[]                     one entry per message or event, oldest first
+    ├── common fields              id, type, date, sender, replies, edits…     §2
+    ├── text, text_entities[]      what was written                            §3
+    ├── media fields               photos, voice notes, stickers, files…       §4
+    ├── reactions[]                who reacted with what                       §5
+    └── actor, action, …           service events only                         §6
+```
+
+In the trees below, `[]` means an array of objects with the fields listed under it.
+
 ---
 
 ## 1. Top level (single-chat export)
 
-```json
-{
-  "name": "Sam",
-  "type": "personal_chat",
-  "id": 1002,
-  "messages": [ ... ]
-}
+```text
+result.json
+├── name        string | null   chat title, or the other person's name in a 1:1 chat
+│                               (null for a deleted account)
+├── type        string          personal_chat, bot_chat, saved_messages,
+│                               private_group, private_supergroup, public_supergroup,
+│                               private_channel, public_channel
+├── id          number          chat id
+└── messages[]                  always present, in chronological order (oldest first)
 ```
-
-| Field      | Type   | Notes |
-|------------|--------|-------|
-| `name`     | string | Chat title, or the other person's name in a 1:1 chat. `null` for a deleted account. |
-| `type`     | string | `personal_chat`, `bot_chat`, `saved_messages`, `private_group`, `private_supergroup`, `public_supergroup`, `private_channel`, `public_channel` |
-| `id`       | number | Chat id. |
-| `messages` | array  | Every message in **chronological order** (oldest first). Always present. |
 
 ### Full-account export (out of scope)
 
 *Settings → Advanced → Export Telegram data* exports a whole account, with every chat a user has. It
 produces a different top level, with the chats nested inside it:
 
-```json
-{
-  "about": "...",
-  "personal_information": { ... },
-  "contacts": { ... },
-  "chats": { "about": "...", "list": [ { "name": ..., "type": ..., "id": ..., "messages": [...] } ] },
-  "left_chats": { ... }
-}
+```text
+result.json  (full-account export)
+├── about
+├── personal_information
+├── contacts
+├── frequent_contacts
+├── chats
+│   ├── about
+│   └── list[]                  each item has the same shape as a single-chat export
+│       ├── name, type, id
+│       └── messages[]
+└── left_chats
 ```
 
-Each item in `chats.list` has the same shape as a single-chat export. This project does per-chat
-analysis only, so it won't support this file. The loader rejects it with an error that says to export
-a single chat instead.
+This project does per-chat analysis only, so it won't support this file. The loader rejects it with an
+error that says to export a single chat instead.
 
 ---
 
@@ -61,25 +74,34 @@ Every entry in `messages` has a `type`:
 - `"message"`: something a person sent. **This is what the stats count.**
 - `"service"`: an event such as a call, a pin or someone joining. See [section 6](#6-service-messages).
 
-| Field                 | Type          | Present on | Notes |
-|-----------------------|---------------|------------|-------|
-| `id`                  | number        | always     | Unique within the chat. |
-| `type`                | string        | always     | `"message"` or `"service"`. |
-| `date`                | string        | always     | `"2023-01-05T21:14:03"`: ISO 8601 **local time of the exporting computer**, no timezone. |
-| `date_unixtime`       | string        | newer exports | Same moment as a Unix timestamp, **stored as a string**. |
-| `edited`              | string        | if edited  | ISO date of the last edit. |
-| `edited_unixtime`     | string        | if edited  | |
-| `from`                | string / null | messages   | Sender's display name **at export time**. `null` for deleted accounts. |
-| `from_id`             | string        | messages   | Stable sender id: `"user123"`, or `"channel123"` for channel posts. **Use this to identify people**, because names change. |
-| `author`              | string        | channel posts | Signature, if the channel shows authors. |
-| `forwarded_from`      | string / null | forwards   | Original sender's name. |
-| `saved_from`          | string        | Saved Messages | |
-| `via_bot`             | string        | inline bot messages | e.g. `"@gif"` |
-| `reply_to_message_id` | number        | replies    | `id` of the message being replied to. |
-| `reply_to_peer_id`    | string        | replies to another chat | |
-| `text`                | string / array | always    | See [section 3](#3-text-and-text_entities). |
-| `text_entities`       | array         | newer exports | See [section 3](#3-text-and-text_entities). |
-| `reactions`           | array         | newer exports | See [section 5](#5-reactions). |
+```text
+messages[]
+├── id                    number          always · unique within the chat
+├── type                  string          always · "message" or "service"
+├── date                  string          always · "2023-01-05T21:14:03", local time of the
+│                                         exporting computer, no timezone
+├── date_unixtime         string          newer exports · Unix timestamp, stored as a string
+├── text                  string | array  always · see §3
+├── text_entities[]                       newer exports · see §3
+│
+│   who sent it ("message" entries only; service entries use actor / actor_id, §6)
+├── from                  string | null   sender's name at export time (null = deleted account)
+├── from_id               string          "user123" or "channel123" · stable, use this to
+│                                         identify people because names change
+├── author                string          channel posts that show a signature
+│
+│   context
+├── edited                string          if edited · date of the last edit
+├── edited_unixtime       string          if edited
+├── reply_to_message_id   number          replies · id of the message being replied to
+├── reply_to_peer_id      string          replies to a message in another chat
+├── forwarded_from        string | null   forwards · original sender's name
+├── saved_from            string          Saved Messages only
+├── via_bot               string          inline bot messages, e.g. "@gif"
+│
+├── reactions[]                           see §5
+└── (media and other content)             see §4
+```
 
 ---
 
@@ -104,6 +126,16 @@ makes it the easier one to use:
   {"type": "plain", "text": "check this out "},
   {"type": "link",  "text": "https://example.com"}
 ]
+```
+
+```text
+text_entities[]
+├── type          string   see the table below
+├── text          string   this piece of the message
+├── href          string   text_link only
+├── user_id       number   mention_name only
+├── language      string   pre only
+└── document_id   number   custom_emoji only
 ```
 
 To get the full text, join every entity's `text`. In the checked export this gave exactly the same
@@ -143,30 +175,29 @@ string `"(File not included. Change data exporting settings to download.)"`. The
 exported. Everything else (`media_type`, `mime_type`, `duration_seconds`, `width`/`height`,
 `sticker_emoji`) is still there, so **media stats work without downloading any media**.
 
-### Photos
-
-Photos have **no `media_type`**. They're recognised by the `photo` key.
-
-| Field             | Notes |
-|-------------------|-------|
-| `photo`           | Relative path, e.g. `"photos/photo_1@14-02-2023_18-30-00.jpg"` |
-| `photo_file_size` | Bytes |
-| `width`, `height` | Pixels |
-
-### Files, video, audio, stickers, GIFs
-
-| Field                | Notes |
-|----------------------|-------|
-| `file`               | Relative path, or the placeholder string above |
-| `file_name`          | Original file name |
-| `file_size`          | Bytes |
-| `thumbnail`, `thumbnail_file_size` | Preview image |
-| `media_type`         | See table below. Missing for plain documents (PDF, zip, …). |
-| `mime_type`          | e.g. `"audio/ogg"` |
-| `duration_seconds`   | Voice notes, video, audio, round videos |
-| `width`, `height`    | Video, GIFs, stickers |
-| `sticker_emoji`      | The emoji linked to a sticker. Missing on a few stickers. |
-| `performer`, `title` | Audio files with tags |
+```text
+messages[]  (media fields, all optional)
+│
+│   photos (these have no media_type, they're recognised by the photo key)
+├── photo                          string   path, e.g. "photos/photo_1@14-02-2023_18-30-00.jpg",
+│                                           or the placeholder
+├── photo_file_size                number   bytes · only if the photo was exported
+├── width, height                  number   pixels
+│
+│   everything else: voice notes, round videos, video, audio, stickers, GIFs, documents
+├── file                           string   path, or the placeholder
+├── file_name                      string   original file name
+├── file_size                      number   bytes · only if the file was exported
+├── thumbnail                      string   preview path, or the placeholder
+├── thumbnail_file_size            number   only if the thumbnail was exported
+├── media_type                     string   see the table below · missing for documents
+├── mime_type                      string   e.g. "audio/ogg"
+├── duration_seconds               number   voice notes, round videos, video, audio
+├── width, height                  number   video, GIFs, stickers
+├── sticker_emoji                  string   emoji linked to a sticker · missing on a few
+├── performer, title               string   audio files with tags
+└── self_destruct_period_seconds   number   disappearing media
+```
 
 | `media_type`      | What it is |
 |-------------------|------------|
@@ -181,15 +212,29 @@ Documents such as PDFs and zips have `file` and `mime_type` but **no `media_type
 
 ### Other message content
 
-| Field                          | Shape |
-|--------------------------------|-------|
-| `poll`                         | `{question, closed, total_voters, answers: [{text, voters, chosen}]}` |
-| `location_information`         | `{latitude, longitude}`, plus `live_location_period_seconds` for live locations |
-| `place_name`, `address`        | Venue shares |
-| `contact_information`          | `{first_name, last_name, phone_number}`, plus `contact_vcard` |
-| `game_title`, `game_description`, `game_link` | Games |
-| `invoice_information`          | Payments |
-| `self_destruct_period_seconds` | Disappearing media |
+```text
+messages[]  (other content, all optional)
+├── poll
+│   ├── question                   string
+│   ├── closed                     bool
+│   ├── total_voters               number
+│   └── answers[]
+│       ├── text                   string
+│       ├── voters                 number
+│       └── chosen                 bool     whether the exporting user picked it
+├── location_information
+│   ├── latitude                   number
+│   └── longitude                  number
+├── live_location_period_seconds   number   live locations only
+├── place_name, address            string   venue shares
+├── contact_information
+│   ├── first_name                 string
+│   ├── last_name                  string
+│   └── phone_number               string
+├── contact_vcard                  string   path to the .vcf file
+├── game_title, game_description, game_link
+└── invoice_information                     payments
+```
 
 ---
 
@@ -198,26 +243,32 @@ Documents such as PDFs and zips have `file` and `mime_type` but **no `media_type
 Only in newer exports, and only on messages that have reactions. The checked export (made in 2024)
 had **no `reactions` field at all**, so this part hasn't been confirmed against a real file:
 
-```json
-"reactions": [
-  {
-    "type": "emoji",
-    "count": 2,
-    "emoji": "❤",
-    "recent": [ {"from": "Sam", "from_id": "user1002", "date": "2023-01-05T21:16:00"} ]
-  }
-]
+```text
+messages[]
+└── reactions[]
+    ├── type          string   "emoji", "custom_emoji" or "paid"
+    ├── count         number   how many people reacted with this
+    ├── emoji         string   type "emoji" only, e.g. "❤"
+    ├── document_id   string   type "custom_emoji" only
+    └── recent[]               may list only some of the people who reacted
+        ├── from      string
+        ├── from_id   string
+        └── date      string
 ```
-
-`type` can also be `"custom_emoji"` (with `document_id` instead of `emoji`) or `"paid"`. `recent` may
-list only some of the people who reacted, not everyone.
 
 ---
 
 ## 6. Service messages
 
-Service messages use `actor` / `actor_id` instead of `from` / `from_id`. The `action` field says what
-happened:
+```text
+messages[]  (type = "service")
+├── id, type, date, date_unixtime   same as §2
+├── text, text_entities             always "" and []
+├── actor                string     who did it (instead of from)
+├── actor_id             string     instead of from_id
+├── action               string     what happened, see the table below
+└── (extra fields)                  depend on the action, see the table below
+```
 
 | `action`                  | Extra fields |
 |---------------------------|--------------|
