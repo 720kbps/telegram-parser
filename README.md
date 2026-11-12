@@ -2,6 +2,10 @@
 
 Python script that reads a Telegram chat export (JSON) and prints fun facts about the conversation.
 
+It analyses **one chat at a time**. Each run takes the export of a single conversation. It doesn't
+analyse a whole Telegram account (all of a user's chats together), and the full-account export file
+isn't supported.
+
 ## Usage
 
 1. In **Telegram Desktop**, open the chat → ⋮ menu → **Export chat history**.

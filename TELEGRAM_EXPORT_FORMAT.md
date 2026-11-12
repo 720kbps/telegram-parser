@@ -3,6 +3,9 @@
 This describes the `result.json` file that **Telegram Desktop** produces with
 *chat menu → Export chat history → Format: JSON*.
 
+The project only does **per-chat analysis**, so this single-chat export is the only input format it
+supports. Account-wide exports are out of scope (see [below](#full-account-export-out-of-scope)).
+
 Telegram doesn't publish an official schema for this file. This spec is based on Telegram Desktop
 exports and was checked against a real 1:1 chat export with a few hundred thousand messages. Fields get
 added over time, so treat every field as **optional** unless it's marked as always present, and ignore
@@ -30,10 +33,10 @@ A fake example covering most cases is in [`samples/sample_chat.json`](samples/sa
 | `id`       | number | Chat id. |
 | `messages` | array  | Every message in **chronological order** (oldest first). Always present. |
 
-### Full-account export (not supported yet)
+### Full-account export (out of scope)
 
-*Settings → Advanced → Export Telegram data* produces a different top level. The chats are nested
-inside it:
+*Settings → Advanced → Export Telegram data* exports a whole account, with every chat a user has. It
+produces a different top level, with the chats nested inside it:
 
 ```json
 {
@@ -45,8 +48,9 @@ inside it:
 }
 ```
 
-Each item in `chats.list` has the same shape as a single-chat export. The loader currently rejects
-this file with an error.
+Each item in `chats.list` has the same shape as a single-chat export. This project does per-chat
+analysis only, so it won't support this file. The loader rejects it with an error that says to export
+a single chat instead.
 
 ---
 
