@@ -289,14 +289,24 @@ messages[]  (type = "service")
 | `clear_history`           | |
 | `set_messages_ttl`        | `period` |
 
-The loader skips all service messages. Calls (`phone_call`) and screenshots (`take_screenshot`) could
-become fun facts later.
+The loader keeps `phone_call` entries for the call stats and skips every other service message.
+Screenshots (`take_screenshot`) could become a fun fact later.
+
+The `actor` of a `phone_call` is whoever started the call.
 
 ---
 
 ## 7. What the loader uses
 
-`telegram_loader.py` turns each `"message"` entry into:
+`load_telegram` returns a dict with two lists, both oldest first:
+
+```text
+chat
+├── messages[]   one per "message" entry
+└── calls[]      one per "phone_call" service entry
+```
+
+Each `"message"` entry becomes:
 
 | Output key | Source |
 |------------|--------|
@@ -307,10 +317,20 @@ become fun facts later.
 | `kind`     | `media_type` → `"photo"` if `photo` → `"file"` if `file` → `"text"` |
 | `duration` | `duration_seconds`, or `0` |
 
+Each `phone_call` entry becomes:
+
+| Output key | Source |
+|------------|--------|
+| `caller`   | newest name seen for `actor_id` in the messages, else `actor`, else `"Deleted account"` |
+| `date`     | `date`, parsed with `datetime.fromisoformat` |
+| `duration` | `duration_seconds`, or `0` for calls that were never answered |
+| `outcome`  | `discard_reason`, or `"unknown"` |
+
 ### Gotchas
 
 - `date` has no timezone. All stats use the exporting computer's local time. Messages are already
-  sorted by `date`.
+  sorted by `date`, but the loader sorts them again anyway because reply time and conversation
+  starters depend on the order.
 - `date_unixtime` is a string, not a number.
 - Photos have no `media_type`.
 - A `from` name is the name at export time. Old messages show the new name, but the same person can

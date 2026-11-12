@@ -73,3 +73,16 @@ and every stat works on it unchanged.
 - [ ] Most repeated messages and how often they appear
 - [ ] Stats for specific words
 - [ ] Messages-to-emoji ratio (and the worst days)
+
+### How you talk (dates, senders and media only, no message text needed)
+
+- [x] Calls: total call time, longest call, missed / declined calls
+- [x] Who starts conversations (first message after a gap of several hours)
+- [x] Average reply time per person
+- [ ] Busiest hour of the day
+- [ ] Longest streak of consecutive days talking
+- [ ] Longest silence
+- [ ] Double-texting (several messages in a row before the other person replies)
+- [ ] Edited messages per person
+- [ ] How often each person replies to a specific message
+- [ ] Favourite sticker emoji

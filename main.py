@@ -47,11 +47,12 @@ def show_lines(lines, default_name):
     return choice != "3"
 
 
-def run_menu(messages):
+def run_menu(chat):
     """Show the main menu until the user chooses to exit."""
+    messages = chat["messages"]
     while True:
         print()
-        print(f"=== Telegram chat: {len(messages)} messages ===")
+        print(f"=== Telegram chat: {len(messages)} messages, {len(chat['calls'])} calls ===")
         print("1) Show all messages")
         print("2) Show statistics")
         print("3) Exit")
@@ -60,7 +61,7 @@ def run_menu(messages):
         if choice == "1":
             keep_going = show_lines(report.message_lines(messages), "messages.txt")
         elif choice == "2":
-            keep_going = show_lines(report.stats_lines(messages), "statistics.txt")
+            keep_going = show_lines(report.stats_lines(chat), "statistics.txt")
         else:
             keep_going = False
 
@@ -77,16 +78,16 @@ def main():
     try:
         export_path = args.export_path or input("Path to the Telegram chat export (.json): ").strip()
         try:
-            messages = load_telegram(Path(export_path).expanduser())
+            chat = load_telegram(Path(export_path).expanduser())
         except (FileNotFoundError, ValueError) as error:
             # ValueError covers both broken JSON and a full-account export.
             print(f"Could not load the chat: {error}")
             return
 
-        if not messages:
+        if not chat["messages"]:
             print("No messages found in this export.")
             return
-        run_menu(messages)
+        run_menu(chat)
     except (KeyboardInterrupt, EOFError):
         print()
     print("Bye!")

@@ -1,7 +1,7 @@
 import json
 import tempfile
 import unittest
-from datetime import date
+from datetime import date, datetime
 from pathlib import Path
 
 import stats
@@ -13,7 +13,7 @@ SAMPLE_PATH = Path(__file__).parent.parent / "samples" / "sample_chat.json"
 class LoaderTest(unittest.TestCase):
     def setUp(self):
         """Load the fake sample chat before each test."""
-        self.messages = load_telegram(SAMPLE_PATH)
+        self.messages = load_telegram(SAMPLE_PATH)["messages"]
 
     def test_skips_service_messages(self):
         """Service entries like calls are not counted as messages."""
@@ -41,7 +41,7 @@ class LoaderTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as folder:
             path = Path(folder) / "chat.json"
             path.write_text(json.dumps({"messages": raw}), encoding="utf-8")
-            messages = load_telegram(path)
+            messages = load_telegram(path)["messages"]
 
         senders = set()
         for msg in messages:
@@ -52,7 +52,7 @@ class LoaderTest(unittest.TestCase):
 class StatsTest(unittest.TestCase):
     def setUp(self):
         """Load the fake sample chat before each test."""
-        self.messages = load_telegram(SAMPLE_PATH)
+        self.messages = load_telegram(SAMPLE_PATH)["messages"]
 
     def test_messages_per_person(self):
         """Each person's message count matches the sample."""
@@ -80,6 +80,53 @@ class StatsTest(unittest.TestCase):
         """Months are counted and listed in date order."""
         months = stats.messages_per_month(self.messages)
         self.assertEqual(months, [("2023-01", 7), ("2023-02", 3)])
+
+
+class HowYouTalkTest(unittest.TestCase):
+    def setUp(self):
+        """Load the fake sample chat, messages and calls, before each test."""
+        self.chat = load_telegram(SAMPLE_PATH)
+
+    def test_loader_keeps_only_phone_calls(self):
+        """Calls are loaded and other service entries, like pins, are skipped."""
+        calls = self.chat["calls"]
+        self.assertEqual(len(calls), 2)
+        self.assertEqual(calls[0]["caller"], "Alex")
+        self.assertEqual(calls[1]["duration"], 0)
+        self.assertEqual(calls[1]["outcome"], "missed")
+
+    def test_call_summary(self):
+        """Answered calls add to talk time and unanswered ones are grouped by reason."""
+        summary = stats.call_summary(self.chat["calls"])
+        self.assertEqual(summary["total"], 2)
+        self.assertEqual(summary["answered"], 1)
+        self.assertEqual(summary["seconds"], 300)
+        self.assertEqual(summary["longest"]["caller"], "Alex")
+        self.assertEqual(summary["started_by"], {"Alex": 1, "Sam": 1})
+        self.assertEqual(summary["unanswered_reasons"], {"missed": 1})
+
+    def test_conversation_starters(self):
+        """Every conversation in the sample is started by Alex after a long gap."""
+        starters = stats.conversation_starters(self.chat["messages"])
+        self.assertEqual(starters["Alex"], 3)
+        self.assertEqual(starters["Sam"], 0)
+
+    def test_reply_times(self):
+        """Reply times are measured from the other person's last message."""
+        summary = stats.reply_times(self.chat["messages"])
+        self.assertEqual(summary["Sam"]["count"], 3)
+        self.assertEqual(summary["Sam"]["median"], 67)
+        self.assertAlmostEqual(summary["Sam"]["average"], (67 + 169 + 60) / 3)
+        self.assertEqual(summary["Alex"], {"count": 1, "median": 22, "average": 22})
+
+    def test_long_gap_is_not_a_reply(self):
+        """An answer after the conversation gap starts a new conversation instead of counting as a reply."""
+        messages = [
+            {"sender": "Alex", "date": datetime(2023, 1, 1, 10, 0)},
+            {"sender": "Sam", "date": datetime(2023, 1, 1, 10, 0) + stats.CONVERSATION_GAP},
+        ]
+        self.assertEqual(stats.reply_times(messages), {})
+        self.assertEqual(stats.conversation_starters(messages), {"Alex": 1, "Sam": 1})
 
 
 if __name__ == "__main__":

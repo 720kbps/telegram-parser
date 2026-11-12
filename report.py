@@ -91,12 +91,83 @@ def months_lines(messages):
     return lines
 
 
-def stats_lines(messages):
-    """Return the full statistics report, with a blank line between sections."""
-    sections = [first_message_lines, people_lines, voice_and_video_lines, top_days_lines, months_lines]
+def starters_lines(messages):
+    """Describe who starts conversations after a long silence."""
+    gap_hours = int(stats.CONVERSATION_GAP.total_seconds() // 3600)
+    starters = stats.conversation_starters(messages)
+    total = sum(starters.values())
+    lines = [f"Who starts conversations (first message after {gap_hours}+ hours of silence): {total} conversations"]
+    # Go through everyone who sent messages, so someone who never starts still shows up with 0.
+    rows = []
+    for sender in stats.messages_per_person(messages):
+        rows.append((starters[sender], sender))
+    rows.sort(reverse=True)
+
+    for count, sender in rows:
+        percent = count / total * 100
+        lines.append(f"  {sender}: {count} ({percent:.1f}%)")
+    return lines
+
+
+def reply_time_lines(messages):
+    """Describe how fast each person usually replies to the other."""
+    lines = ["Reply time:"]
+    summary = stats.reply_times(messages)
+    if not summary:
+        lines.append("  Not enough back-and-forth to measure.")
+        return lines
+
+    for sender, times in summary.items():
+        typical = format_duration(round(times["median"]))
+        average = format_duration(round(times["average"]))
+        replies = "reply" if times["count"] == 1 else "replies"
+        lines.append(f"  {sender}: usually {typical}, on average {average} ({times['count']} {replies})")
+    return lines
+
+
+def calls_lines(calls):
+    """Describe the calls: how many, how long, the longest one, and the ones nobody picked up."""
+    summary = stats.call_summary(calls)
+    lines = [f"Calls: {summary['total']}"]
+    if summary["total"] == 0:
+        return lines
+
+    for caller, count in summary["started_by"].most_common():
+        lines.append(f"  Started by {caller}: {count}")
+
+    answered = summary["answered"]
+    lines.append(f"  Answered: {answered}, total talk time {format_duration(summary['seconds'])}")
+    if answered > 0:
+        average = format_duration(round(summary["seconds"] / answered))
+        longest = summary["longest"]
+        lines.append(f"  Average call: {average}")
+        lines.append(f"  Longest call: {format_duration(longest['duration'])} on {longest['date']:%d %b %Y}, started by {longest['caller']}")
+
+    unanswered = summary["total"] - answered
+    if unanswered > 0:
+        reasons = []
+        for reason, count in summary["unanswered_reasons"].most_common():
+            reasons.append(f"{reason} {count}")
+        lines.append(f"  Not answered: {unanswered} ({', '.join(reasons)})")
+    return lines
+
+
+def stats_lines(chat):
+    """Return the full statistics report for a loaded chat, with a blank line between sections."""
+    messages = chat["messages"]
+    sections = [
+        first_message_lines(messages),
+        people_lines(messages),
+        starters_lines(messages),
+        reply_time_lines(messages),
+        voice_and_video_lines(messages),
+        calls_lines(chat["calls"]),
+        top_days_lines(messages),
+        months_lines(messages),
+    ]
     lines = []
-    for build_section in sections:
+    for section in sections:
         if lines:
             lines.append("")
-        lines.extend(build_section(messages))
+        lines.extend(section)
     return lines

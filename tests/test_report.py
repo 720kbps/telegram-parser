@@ -51,7 +51,7 @@ class MessageListTest(unittest.TestCase):
 
     def test_sample_chat_list(self):
         """The sample chat gives one line per message, starting with the first one."""
-        lines = report.message_lines(load_telegram(SAMPLE_PATH))
+        lines = report.message_lines(load_telegram(SAMPLE_PATH)["messages"])
         self.assertEqual(len(lines), 10)
         self.assertEqual(lines[0], "Alex: hey, is this the right chat?")
 
@@ -60,8 +60,29 @@ class StatsReportTest(unittest.TestCase):
     def test_report_has_every_section(self):
         """The statistics report includes each section heading."""
         text = "\n".join(report.stats_lines(load_telegram(SAMPLE_PATH)))
-        for heading in ["First message:", "Total messages: 10", "Lost information", "Busiest days:", "Messages per month:"]:
+        headings = [
+            "First message:",
+            "Total messages: 10",
+            "Who starts conversations",
+            "Reply time:",
+            "Lost information",
+            "Calls: 2",
+            "Busiest days:",
+            "Messages per month:",
+        ]
+        for heading in headings:
             self.assertIn(heading, text)
+
+    def test_calls_section(self):
+        """The calls section shows talk time, the longest call and why calls weren't answered."""
+        lines = report.calls_lines(load_telegram(SAMPLE_PATH)["calls"])
+        self.assertIn("  Answered: 1, total talk time 5m 0s", lines)
+        self.assertIn("  Longest call: 5m 0s on 05 Jan 2023, started by Alex", lines)
+        self.assertIn("  Not answered: 1 (missed 1)", lines)
+
+    def test_no_calls(self):
+        """A chat without calls just says so."""
+        self.assertEqual(report.calls_lines([]), ["Calls: 0"])
 
     def test_format_duration(self):
         """Durations are shown in the largest sensible units."""
