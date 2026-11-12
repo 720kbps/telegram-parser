@@ -79,9 +79,9 @@ and every stat works on it unchanged.
 - [x] Calls: total call time, longest call, missed / declined calls
 - [x] Who starts conversations (first message after a gap of several hours)
 - [x] Average reply time per person
-- [ ] Busiest hour of the day
-- [ ] Longest streak of consecutive days talking
-- [ ] Longest silence
+- [x] Busiest hour of the day
+- [x] Longest streak of consecutive days talking
+- [x] Longest silence
 - [ ] Double-texting (several messages in a row before the other person replies)
 - [ ] Edited messages per person
 - [ ] How often each person replies to a specific message

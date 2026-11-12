@@ -5,12 +5,18 @@ KIND_LABELS = {
     "video_message": "Round video messages",
 }
 
+# Width in characters of the busiest hour's bar in the hour histogram.
+HOUR_BAR_WIDTH = 30
+
 
 def format_duration(total_seconds):
-    """Turn a number of seconds into a short string like "1h 5m" or "42s"."""
+    """Turn a number of seconds into a short string like "3d 4h", "1h 5m" or "42s"."""
+    days = total_seconds // 86400
     hours = total_seconds // 3600
     minutes = (total_seconds % 3600) // 60
     seconds = total_seconds % 60
+    if days > 0:
+        return f"{days}d {hours % 24}h"
     if hours > 0:
         return f"{hours}h {minutes}m"
     if minutes > 0:
@@ -91,6 +97,51 @@ def months_lines(messages):
     return lines
 
 
+def format_hour_range(hour):
+    """Turn an hour like 22 into "22:00–23:00"."""
+    return f"{hour:02d}:00–{(hour + 1) % 24:02d}:00"
+
+
+def hour_histogram_lines(hour_counts):
+    """Draw one bar per hour of the day, scaled so the busiest hour is HOUR_BAR_WIDTH wide."""
+    most = max(hour_counts.values())
+    lines = []
+    for hour in range(24):
+        count = hour_counts[hour]
+        width = round(count / most * HOUR_BAR_WIDTH)
+        # Keep a sliver for quiet hours so they don't look the same as empty ones.
+        if count > 0 and width == 0:
+            width = 1
+        bar = "█" * width
+        lines.append(f"  {hour:02d}:00 {bar.ljust(HOUR_BAR_WIDTH)} {count}")
+    return lines
+
+
+def busiest_hour_lines(messages):
+    """Describe the busiest hour of the day overall and per person, with a 24-hour histogram."""
+    if not messages:
+        return ["Busiest hour: no messages"]
+
+    hour_counts = stats.busiest_hours(messages)
+    best_hour = 0
+    # Checking hours in order means a tie goes to the earliest hour.
+    for hour in range(24):
+        if hour_counts[hour] > hour_counts[best_hour]:
+            best_hour = hour
+    percent = hour_counts[best_hour] / len(messages) * 100
+    lines = [f"Busiest hour: {format_hour_range(best_hour)} ({percent:.1f}% of messages)"]
+
+    per_person = stats.busiest_hour_per_person(messages)
+    for sender, _ in stats.messages_per_person(messages).most_common():
+        hour, count = per_person[sender]
+        noun = "message" if count == 1 else "messages"
+        lines.append(f"  {sender}: {format_hour_range(hour)} ({count} {noun})")
+
+    lines.append("Messages by hour:")
+    lines.extend(hour_histogram_lines(hour_counts))
+    return lines
+
+
 def starters_lines(messages):
     """Describe who starts conversations after a long silence."""
     gap_hours = int(stats.CONVERSATION_GAP.total_seconds() // 3600)
@@ -109,6 +160,22 @@ def starters_lines(messages):
     return lines
 
 
+def streak_lines(messages):
+    """Describe the longest run of consecutive days with messages and how many days had any."""
+    lines = ["Streaks:"]
+    streak = stats.longest_streak(messages)
+    if streak["days"] == 0:
+        lines.append("  No messages to measure.")
+        return lines
+
+    unit = "day" if streak["days"] == 1 else "days"
+    lines.append(f"  Longest streak: {streak['days']} {unit} in a row ({streak['start']:%d %b %Y} – {streak['end']:%d %b %Y})")
+    talked = stats.days_talked(messages)
+    percent = talked["talked"] / talked["total"] * 100
+    lines.append(f"  Talked on {talked['talked']} of {talked['total']} days ({percent:.1f}%)")
+    return lines
+
+
 def reply_time_lines(messages):
     """Describe how fast each person usually replies to the other."""
     lines = ["Reply time:"]
@@ -122,6 +189,22 @@ def reply_time_lines(messages):
         average = format_duration(round(times["average"]))
         replies = "reply" if times["count"] == 1 else "replies"
         lines.append(f"  {sender}: usually {typical}, on average {average} ({times['count']} {replies})")
+    return lines
+
+
+def silence_lines(messages):
+    """Describe the longest gaps between messages and who broke each silence."""
+    lines = ["Longest silences:"]
+    silences = stats.longest_silences(messages)
+    if not silences:
+        lines.append("  Not enough messages to measure.")
+        return lines
+
+    for number, silence in enumerate(silences, start=1):
+        duration = format_duration(round(silence["seconds"]))
+        start = f"{silence['start']:%d %b %Y %H:%M}"
+        end = f"{silence['end']:%d %b %Y %H:%M}"
+        lines.append(f"  {number}. {duration}: {start} → {end}, broken by {silence['broken_by']}")
     return lines
 
 
@@ -160,6 +243,9 @@ def stats_lines(chat):
         people_lines(messages),
         starters_lines(messages),
         reply_time_lines(messages),
+        busiest_hour_lines(messages),
+        streak_lines(messages),
+        silence_lines(messages),
         voice_and_video_lines(messages),
         calls_lines(chat["calls"]),
         top_days_lines(messages),
