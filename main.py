@@ -10,6 +10,7 @@ KIND_LABELS = {
 
 
 def format_duration(total_seconds):
+    """Turn a number of seconds into a short string like "1h 5m" or "42s"."""
     hours = total_seconds // 3600
     minutes = (total_seconds % 3600) // 60
     seconds = total_seconds % 60
@@ -21,12 +22,14 @@ def format_duration(total_seconds):
 
 
 def print_first_message(messages):
+    """Print who sent the very first message, when, and what it was."""
     first = stats.first_message(messages)
     content = first["text"] or f"[{first['kind']}]"
     print(f"First message: {first['date']:%d %b %Y %H:%M}, {first['sender']}: {content}")
 
 
 def print_people(messages):
+    """Print the total message count and each person's share of it."""
     total = len(messages)
     print(f"Total messages: {total}")
     ranked = stats.messages_per_person(messages).most_common()
@@ -42,6 +45,7 @@ def print_people(messages):
 
 
 def print_voice_and_video(messages):
+    """Print how many voice and round video messages were sent and their total length."""
     print("Lost information (not in the export as text):")
     totals = stats.voice_and_video(messages)
     for kind, label in KIND_LABELS.items():
@@ -51,18 +55,21 @@ def print_voice_and_video(messages):
 
 
 def print_top_days(messages):
+    """Print the busiest days by number of messages."""
     print("Busiest days:")
     for day, count in stats.top_days(messages):
         print(f"  {day:%d %b %Y}: {count} messages")
 
 
 def print_months(messages):
+    """Print the number of messages sent in each month."""
     print("Messages per month:")
     for month, count in stats.messages_per_month(messages):
         print(f"  {month}: {count}")
 
 
 def main():
+    """Read the export path from the command line and print the full report."""
     parser = argparse.ArgumentParser(description="Fun facts from a Telegram chat export.")
     parser.add_argument("export_path", help="path to the result.json from Telegram Desktop")
     args = parser.parse_args()

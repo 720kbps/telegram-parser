@@ -2,6 +2,7 @@ from collections import Counter
 
 
 def messages_per_person(messages):
+    """Count how many messages each person sent."""
     counts = Counter()
     for msg in messages:
         counts[msg["sender"]] += 1
@@ -9,6 +10,7 @@ def messages_per_person(messages):
 
 
 def first_message(messages):
+    """Return the earliest message in the chat."""
     first = messages[0]
     for msg in messages:
         if msg["date"] < first["date"]:
@@ -17,6 +19,7 @@ def first_message(messages):
 
 
 def voice_and_video(messages):
+    """Count voice and round video messages and add up their length in seconds."""
     # The export has no transcripts for these, so this is the "lost information".
     totals = {
         "voice_message": {"count": 0, "seconds": 0},
@@ -31,6 +34,7 @@ def voice_and_video(messages):
 
 
 def top_days(messages, how_many=10):
+    """Return the days with the most messages, busiest first."""
     counts = Counter()
     for msg in messages:
         counts[msg["date"].date()] += 1
@@ -38,6 +42,7 @@ def top_days(messages, how_many=10):
 
 
 def messages_per_month(messages):
+    """Count messages per month, sorted from oldest to newest."""
     counts = Counter()
     for msg in messages:
         month = msg["date"].strftime("%Y-%m")

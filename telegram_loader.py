@@ -3,6 +3,7 @@ from datetime import datetime
 
 
 def load_telegram(path):
+    """Load a single-chat Telegram export and return its messages as plain dicts."""
     with open(path, encoding="utf-8") as f:
         export = json.load(f)
 
@@ -34,6 +35,7 @@ def load_telegram(path):
 
 
 def find_latest_names(raw_messages):
+    """Map each sender id to the newest display name it had."""
     # People rename themselves over time. Grouping by id and using the newest name
     # keeps one person from being counted as two.
     names = {}
@@ -45,6 +47,7 @@ def find_latest_names(raw_messages):
 
 
 def extract_text(msg):
+    """Return the full message text from either the new or the old export format."""
     # Newer exports always have text_entities as a list of {"type", "text"} pieces.
     if "text_entities" in msg:
         parts = []
@@ -68,6 +71,7 @@ def extract_text(msg):
 
 
 def find_kind(msg):
+    """Return what kind of message this is: its media_type, "photo", "file" or "text"."""
     if "media_type" in msg:
         # voice_message, video_message, sticker, animation, video_file, audio_file
         return msg["media_type"]
