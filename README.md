@@ -34,6 +34,9 @@ No third-party packages needed (Python 3.9+).
 - `stats.py` has one small function per fun fact. Each takes that list.
 - `main.py` prints the report.
 
+The structure of Telegram's `result.json` is documented in
+[TELEGRAM_EXPORT_FORMAT.md](TELEGRAM_EXPORT_FORMAT.md).
+
 To add another platform (e.g. Instagram), write a loader that returns the same message dicts
 and every stat works on it unchanged.
 

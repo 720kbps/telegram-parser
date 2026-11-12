@@ -172,5 +172,5 @@ cython_debug/
 
 # Chat exports are private, keep them out of git
 data/
-ChatExport*/
+chatExport/
 .DS_Store
