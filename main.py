@@ -1,88 +1,95 @@
 import argparse
+from pathlib import Path
 
-import stats
+import report
 from telegram_loader import load_telegram
 
-KIND_LABELS = {
-    "voice_message": "Voice messages",
-    "video_message": "Round video messages",
-}
+# Exports can contain private messages, so they go in a git-ignored folder by default.
+EXPORT_FOLDER = Path(__file__).parent / "exports"
 
 
-def format_duration(total_seconds):
-    """Turn a number of seconds into a short string like "1h 5m" or "42s"."""
-    hours = total_seconds // 3600
-    minutes = (total_seconds % 3600) // 60
-    seconds = total_seconds % 60
-    if hours > 0:
-        return f"{hours}h {minutes}m"
-    if minutes > 0:
-        return f"{minutes}m {seconds}s"
-    return f"{seconds}s"
+def ask_choice(prompt, choices):
+    """Keep asking until the user types one of the allowed choices, then return it."""
+    while True:
+        answer = input(prompt).strip()
+        if answer in choices:
+            return answer
+        print(f"Please type one of: {', '.join(choices)}")
 
 
-def print_first_message(messages):
-    """Print who sent the very first message, when, and what it was."""
-    first = stats.first_message(messages)
-    content = first["text"] or f"[{first['kind']}]"
-    print(f"First message: {first['date']:%d %b %Y %H:%M}, {first['sender']}: {content}")
+def save_lines(lines, default_name):
+    """Ask for a file name and write the lines to that file."""
+    default_path = EXPORT_FOLDER / default_name
+    answer = input(f"File name (Enter for {default_path}): ").strip()
+    if answer:
+        path = Path(answer).expanduser()
+    else:
+        path = default_path
+
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    print(f"Saved to {path}")
 
 
-def print_people(messages):
-    """Print the total message count and each person's share of it."""
-    total = len(messages)
-    print(f"Total messages: {total}")
-    ranked = stats.messages_per_person(messages).most_common()
-    for sender, count in ranked:
-        percent = count / total * 100
-        print(f"  {sender}: {count} ({percent:.1f}%)")
+def show_lines(lines, default_name):
+    """Print the lines, then offer to export them; return False if the user wants to exit."""
+    print()
+    for line in lines:
+        print(line)
 
-    if len(ranked) == 2:
-        top = ranked[0]
-        other = ranked[1]
-        difference = (top[1] - other[1]) / other[1] * 100
-        print(f"  {top[0]} sent {difference:.0f}% more messages than {other[0]}")
-
-
-def print_voice_and_video(messages):
-    """Print how many voice and round video messages were sent and their total length."""
-    print("Lost information (not in the export as text):")
-    totals = stats.voice_and_video(messages)
-    for kind, label in KIND_LABELS.items():
-        count = totals[kind]["count"]
-        duration = format_duration(totals[kind]["seconds"])
-        print(f"  {label}: {count} ({duration})")
+    print()
+    print("1) Export to a file")
+    print("2) Back to the menu")
+    print("3) Exit")
+    choice = ask_choice("> ", ["1", "2", "3"])
+    if choice == "1":
+        save_lines(lines, default_name)
+    return choice != "3"
 
 
-def print_top_days(messages):
-    """Print the busiest days by number of messages."""
-    print("Busiest days:")
-    for day, count in stats.top_days(messages):
-        print(f"  {day:%d %b %Y}: {count} messages")
+def run_menu(messages):
+    """Show the main menu until the user chooses to exit."""
+    while True:
+        print()
+        print(f"=== Telegram chat: {len(messages)} messages ===")
+        print("1) Show all messages")
+        print("2) Show statistics")
+        print("3) Exit")
+        choice = ask_choice("> ", ["1", "2", "3"])
 
+        if choice == "1":
+            keep_going = show_lines(report.message_lines(messages), "messages.txt")
+        elif choice == "2":
+            keep_going = show_lines(report.stats_lines(messages), "statistics.txt")
+        else:
+            keep_going = False
 
-def print_months(messages):
-    """Print the number of messages sent in each month."""
-    print("Messages per month:")
-    for month, count in stats.messages_per_month(messages):
-        print(f"  {month}: {count}")
+        if not keep_going:
+            return
 
 
 def main():
-    """Read the export path from the command line and print the full report."""
+    """Load the chat export given on the command line (or ask for it) and start the menu."""
     parser = argparse.ArgumentParser(description="Fun facts from a Telegram chat export.")
-    parser.add_argument("export_path", help="path to the result.json from Telegram Desktop")
+    parser.add_argument("export_path", nargs="?", help="path to the JSON file from Telegram Desktop")
     args = parser.parse_args()
 
-    messages = load_telegram(args.export_path)
-    if not messages:
-        print("No messages found in this export.")
-        return
+    try:
+        export_path = args.export_path or input("Path to the Telegram chat export (.json): ").strip()
+        try:
+            messages = load_telegram(Path(export_path).expanduser())
+        except (FileNotFoundError, ValueError) as error:
+            # ValueError covers both broken JSON and a full-account export.
+            print(f"Could not load the chat: {error}")
+            return
 
-    sections = [print_first_message, print_people, print_voice_and_video, print_top_days, print_months]
-    for print_section in sections:
-        print_section(messages)
+        if not messages:
+            print("No messages found in this export.")
+            return
+        run_menu(messages)
+    except (KeyboardInterrupt, EOFError):
         print()
+    print("Bye!")
 
 
 if __name__ == "__main__":

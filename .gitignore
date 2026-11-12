@@ -174,3 +174,4 @@ cython_debug/
 data/
 chatExport/
 .DS_Store
+exports/
