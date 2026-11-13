@@ -14,12 +14,16 @@ It takes about 5 minutes, and you only need to do steps 1 and 2 once.
 
 ### 1. Install Python (once)
 
-- **Mac:** open **Terminal** (press `⌘ Space`, type `Terminal`, press Enter), then type `python3 --version`
-  and press Enter. If a window asks to install "command line developer tools", click **Install** and
-  wait for it to finish. You're done when it prints `Python 3.9` or higher.
-- **Windows:** download Python from [python.org/downloads](https://www.python.org/downloads/) and run
-  the installer. On the first screen, **tick "Add python.exe to PATH"**. Also install
-  [Git for Windows](https://git-scm.com/download/win), keeping all the default options.
+Download Python from [python.org/downloads](https://www.python.org/downloads/) (the big yellow
+button) and run the installer like any other app.
+
+- **Mac:** just click through the installer.
+  > If you typed `python3` in Terminal before this and a window offered to install the "command line
+  > developer tools" (which can claim to take hours), click **Cancel**. You don't need those.
+- **Windows:** on the installer's first screen, **tick "Add python.exe to PATH"** before clicking
+  Install.
+
+Afterwards, close any open Terminal or PowerShell windows, so the next one finds the new Python.
 
 ### 2. Export your chat from Telegram
 
@@ -39,18 +43,19 @@ Exporting only works in **Telegram Desktop**, the computer app from
 
 ### 3. Download and start it
 
-Copy the line for your computer, paste it into the terminal and press Enter.
+Open a terminal, then copy the line for your computer, paste it in and press Enter. It downloads the
+project into a folder called `telegram-parser-main` and starts it.
 
-**Mac / Linux** (in Terminal):
+**Mac / Linux:** open **Terminal** (press `⌘ Space`, type `Terminal`, press Enter):
 
 ```bash
-git clone https://github.com/720kbps/telegram-parser.git && cd telegram-parser && python3 main.py
+curl -fL -o telegram-parser.zip https://github.com/720kbps/telegram-parser/archive/refs/heads/main.zip && unzip -oq telegram-parser.zip && cd telegram-parser-main && python3 main.py
 ```
 
-**Windows** (open **PowerShell** from the Start menu):
+**Windows:** open **PowerShell** from the Start menu:
 
 ```powershell
-git clone https://github.com/720kbps/telegram-parser.git; cd telegram-parser; py main.py
+curl.exe -fL -o telegram-parser.zip https://github.com/720kbps/telegram-parser/archive/refs/heads/main.zip; tar -xf telegram-parser.zip; cd telegram-parser-main; py main.py
 ```
 
 ### 4. Get your Wrapped
@@ -60,18 +65,19 @@ git clone https://github.com/720kbps/telegram-parser.git; cd telegram-parser; py
 2. Type **`3`** and press Enter to save the Wrapped page.
 3. Type **`y`** and press Enter to open it in your browser. 🎉
 
-The page is saved in the `telegram-parser/reports/` folder, so you can open it again later.
+The page is saved in the `telegram-parser-main/reports/` folder, so you can open it again later.
 
 **Next time**, open the terminal and run just this:
 
 ```bash
-cd telegram-parser && python3 main.py
+cd telegram-parser-main && python3 main.py
 ```
 
-On Windows, use `cd telegram-parser; py main.py` instead.
+On Windows, use `cd telegram-parser-main; py main.py` instead. To get a newer version later, run the
+long line from step 3 again. Your saved reports are kept.
 
 <details>
-<summary><b>Can't use Git? Download a ZIP instead</b></summary>
+<summary><b>Prefer clicking? Download it by hand</b></summary>
 
 1. On this project's GitHub page, click the green **Code** button, then **Download ZIP**, and unzip it.
 2. Open a terminal in that folder:
@@ -86,8 +92,10 @@ On Windows, use `cd telegram-parser; py main.py` instead.
 <details>
 <summary><b>Something went wrong?</b></summary>
 
-- **"command not found: git" or "python3 not found":** go back to step 1. On Windows, close and
-  reopen PowerShell after installing.
+- **A Mac asks to install "command line developer tools":** click **Cancel**, install Python from
+  python.org as in step 1, then open a new Terminal window and try again.
+- **"python3 not found", or Windows opens the Microsoft Store:** go back to step 1. On Windows, make
+  sure "Add python.exe to PATH" was ticked, then close and reopen PowerShell.
 - **"has no 'messages' list":** you exported your whole account instead of one chat. Use **Export
   chat history** from inside the chat, as in step 2.
 - **"There's no result.json" or "Expecting value":** the chat was exported as HTML. Export it again
@@ -160,7 +168,12 @@ words, e.g. `capy*` matches "capybara". Capital letters and Romanian diacritics 
 
 ## For developers
 
-No third-party packages are needed. The project uses only Python 3.9+ and its standard library.
+No third-party packages are needed. The project uses only Python 3.9+ and its standard library. With
+Git installed, clone it instead of downloading the ZIP:
+
+```bash
+git clone https://github.com/720kbps/telegram-parser.git
+```
 
 ```
 main.py                       the menu: load a chat, show or save the results
