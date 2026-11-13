@@ -1,6 +1,6 @@
 import unittest
 
-from text_tools import normalize_text, split_words
+from telegram_parser.text_tools import normalize_text, split_words
 
 
 class NormalizeTextTest(unittest.TestCase):

@@ -1,3 +1,5 @@
+"""Find the emoji in a piece of text, keeping multi-part emoji like 👍🏽 or 🇷🇴 whole."""
+
 # Finds emoji in text using only the standard library. It's kept simple on purpose: these ranges
 # cover the emoji people actually type, and a symbol outside them (like ↔ or ☺) only counts when it's
 # followed by the emoji presentation selector U+FE0F, which is how phones send those as emoji.

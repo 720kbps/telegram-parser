@@ -1,3 +1,5 @@
+"""Load a Telegram Desktop single-chat JSON export into plain message and call dicts."""
+
 import json
 from datetime import datetime
 
@@ -39,7 +41,6 @@ def load_telegram(path):
 def make_message(msg, latest_names):
     """Turn one raw "message" entry into a plain message dict."""
     return {
-        "platform": "telegram",
         "id": msg.get("id"),
         "sender": latest_names.get(msg["from_id"], "Deleted account"),
         "date": datetime.fromisoformat(msg["date"]),

@@ -1,10 +1,10 @@
 import unittest
 from pathlib import Path
 
-import report
-import stats
-from emoji_finder import find_emoji
-from telegram_loader import load_telegram
+from telegram_parser import report
+from telegram_parser import stats
+from telegram_parser.emoji_finder import find_emoji
+from telegram_parser.loader import load_telegram
 
 SAMPLE_PATH = Path(__file__).parent.parent / "samples" / "sample_chat.json"
 

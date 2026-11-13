@@ -4,8 +4,8 @@ import unittest
 from collections import Counter
 from datetime import date, datetime
 
-import report
-import stats
+from telegram_parser import report
+from telegram_parser import stats
 
 
 def make_message(sender, stamp, text):
@@ -157,10 +157,11 @@ class TrackedWordLinesTest(unittest.TestCase):
         lines = report.tracked_word_lines(self.messages, path)
         self.assertEqual(lines, ["Tracked words: none set up (copy tracked_words.example.txt to tracked_words.txt and add words)"])
 
-    def test_default_path_is_next_to_report(self):
-        """The default words file is tracked_words.txt in the same folder as report.py."""
-        self.assertEqual(report.TRACKED_WORDS_PATH.name, "tracked_words.txt")
-        self.assertEqual(report.TRACKED_WORDS_PATH.parent, report.Path(report.__file__).parent)
+    def test_default_path_is_in_project_root(self):
+        """The default words file is tracked_words.txt in the project root, next to the example file."""
+        project_root = report.Path(report.__file__).parent.parent
+        self.assertEqual(report.TRACKED_WORDS_PATH, project_root / "tracked_words.txt")
+        self.assertTrue((project_root / "tracked_words.example.txt").exists())
 
 
 if __name__ == "__main__":

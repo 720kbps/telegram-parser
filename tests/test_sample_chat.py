@@ -4,8 +4,8 @@ import unittest
 from datetime import date, datetime
 from pathlib import Path
 
-import stats
-from telegram_loader import extract_text, load_telegram
+from telegram_parser import stats
+from telegram_parser.loader import extract_text, load_telegram
 
 SAMPLE_PATH = Path(__file__).parent.parent / "samples" / "sample_chat.json"
 

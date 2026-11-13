@@ -11,7 +11,7 @@ exports and was checked against a real 1:1 chat export with a few hundred thousa
 added over time, so treat every field as **optional** unless it's marked as always present, and ignore
 fields you don't recognise.
 
-A fake example covering most cases is in [`samples/sample_chat.json`](samples/sample_chat.json).
+A fake example covering most cases is in [`samples/sample_chat.json`](../samples/sample_chat.json).
 
 ## At a glance
 
@@ -140,7 +140,7 @@ text_entities[]
 
 To get the full text, join every entity's `text`. In the checked export this gave exactly the same
 string as joining `text` for every message. If `text_entities` is missing (older exports), fall back to
-`text`. `telegram_loader.extract_text` does both.
+`text`. `telegram_parser/loader.py` (`extract_text`) does both.
 
 Service messages have `text: ""` and `text_entities: []` too.
 
@@ -298,7 +298,7 @@ The `actor` of a `phone_call` is whoever started the call.
 
 ## 7. What the loader uses
 
-`load_telegram` returns a dict with two lists, both oldest first:
+`load_telegram` in `telegram_parser/loader.py` returns a dict with two lists, both oldest first:
 
 ```text
 chat
@@ -310,7 +310,6 @@ Each `"message"` entry becomes:
 
 | Output key | Source |
 |------------|--------|
-| `platform`      | always `"telegram"` |
 | `id`            | `id` |
 | `sender`        | newest non-null `from` seen for that `from_id`, else `"Deleted account"` |
 | `date`          | `date`, parsed with `datetime.fromisoformat` |

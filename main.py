@@ -1,11 +1,15 @@
+"""Text menu: load a Telegram chat export, then show the messages or the fun facts and save them to reports/."""
+
 import argparse
+from datetime import datetime
 from pathlib import Path
 
-import report
-from telegram_loader import load_telegram
+from telegram_parser import report
+from telegram_parser.loader import load_telegram
 
-# Exports can contain private messages, so they go in a git-ignored folder by default.
-EXPORT_FOLDER = Path(__file__).parent / "exports"
+PROJECT_FOLDER = Path(__file__).parent
+# Reports can contain private messages, so they always go in this git-ignored folder.
+REPORTS_FOLDER = PROJECT_FOLDER / "reports"
 
 
 def ask_choice(prompt, choices):
@@ -17,21 +21,66 @@ def ask_choice(prompt, choices):
         print(f"Please type one of: {', '.join(choices)}")
 
 
-def save_lines(lines, default_name):
-    """Ask for a file name and write the lines to that file."""
-    default_path = EXPORT_FOLDER / default_name
-    answer = input(f"File name (Enter for {default_path}): ").strip()
-    if answer:
-        path = Path(answer).expanduser()
-    else:
-        path = default_path
+def default_file_name(kind, now=None):
+    """Return a name like "statistics_2026-11-13_22-15.txt" for the given kind of report."""
+    if now is None:
+        now = datetime.now()
+    # The date and time keep later saves from overwriting earlier ones.
+    return f"{kind}_{now.strftime('%Y-%m-%d_%H-%M')}.txt"
 
+
+def clean_file_name(answer):
+    """Return just the file-name part of what the user typed, with ".txt" added if it has no extension."""
+    # Dropping any folders stops a typed path from writing outside the reports folder.
+    name = Path(answer).name
+    if name == "":
+        return ""
+    if Path(name).suffix == "":
+        name = name + ".txt"
+    return name
+
+
+def free_path(folder, name):
+    """Return a path in the folder for this name, adding _2, _3, ... if the file already exists."""
+    path = folder / name
+    stem = Path(name).stem
+    suffix = Path(name).suffix
+    number = 2
+    while path.exists():
+        path = folder / f"{stem}_{number}{suffix}"
+        number += 1
+    return path
+
+
+def write_lines(path, lines):
+    """Create the file's folder if needed and write the lines to the file."""
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
-    print(f"Saved to {path}")
 
 
-def show_lines(lines, default_name):
+def shown_path(path):
+    """Return the path relative to the project folder when possible, for printing."""
+    try:
+        return path.relative_to(PROJECT_FOLDER)
+    except ValueError:
+        return path
+
+
+def save_lines(lines, kind, folder=REPORTS_FOLDER):
+    """Ask for a file name, save the lines in the reports folder and return the saved path."""
+    default_name = default_file_name(kind)
+    answer = input(f"File name (Enter for {default_name}): ").strip()
+    name = clean_file_name(answer)
+    if name == "":
+        name = default_name
+
+    path = free_path(folder, name)
+    write_lines(path, lines)
+    print(f"Saved to {shown_path(path)}")
+    return path
+
+
+def show_lines(lines, kind):
     """Print the lines, then offer to export them; return False if the user wants to exit."""
     print()
     for line in lines:
@@ -43,7 +92,7 @@ def show_lines(lines, default_name):
     print("3) Exit")
     choice = ask_choice("> ", ["1", "2", "3"])
     if choice == "1":
-        save_lines(lines, default_name)
+        save_lines(lines, kind)
     return choice != "3"
 
 
@@ -59,9 +108,9 @@ def run_menu(chat):
         choice = ask_choice("> ", ["1", "2", "3"])
 
         if choice == "1":
-            keep_going = show_lines(report.message_lines(messages), "messages.txt")
+            keep_going = show_lines(report.message_lines(messages), "messages")
         elif choice == "2":
-            keep_going = show_lines(report.stats_lines(chat), "statistics.txt")
+            keep_going = show_lines(report.stats_lines(chat), "statistics")
         else:
             keep_going = False
 

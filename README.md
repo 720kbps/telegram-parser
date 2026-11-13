@@ -1,104 +1,113 @@
 # telegram-parser
 
-Python script that reads a Telegram chat export (JSON) and prints fun facts about the conversation.
+Turn a Telegram chat export into a report full of fun facts about the conversation: who texts more,
+who starts the conversations, how fast you reply, your longest streak, your favourite emoji, and more.
 
-It analyses **one chat at a time**. Each run takes the export of a single conversation. It doesn't
-analyse a whole Telegram account (all of a user's chats together), and the full-account export file
-isn't supported.
+It works on **one chat at a time**: the JSON export of a single conversation from Telegram Desktop.
+Everything runs locally, and it needs only Python 3.9+ with no extra packages.
 
-## Usage
-
-1. In **Telegram Desktop**, open the chat → ⋮ menu → **Export chat history**.
-   Pick **JSON** as the format; you can untick photos/videos/files, only `result.json` is needed.
-2. Put the export somewhere outside git, e.g. a `data/` folder (it's ignored).
-3. Run:
-
-```bash
-python3 main.py data/result.json
 ```
+===== Conversations =====
 
-(Or run `python3 main.py` without a path and it will ask for one.)
+Who starts conversations (first message after 6+ hours of silence): 3 conversations
+  Alex: 3 (100.0%)
+  Sam: 0 (0.0%)
 
-This opens a menu:
+Reply time:
+  Sam: usually 1m 7s, on average 1m 39s (3 replies)
+  Alex: usually 22s, on average 22s (1 reply)
+
+Double-texting (texting again after more than 1h without a reply):
+  Alex: 1 time, longest wait 11h 46m before texting again (06 Jan 2023)
+  Sam: 0 times
+```
+<sub>From the fake chat in `samples/`.</sub>
+
+## Quick start
+
+1. **Export a chat.** In Telegram Desktop, open the chat, then **⋮ → Export chat history**.
+   Choose **JSON** as the format. You can untick photos, videos and files, since only the `.json`
+   file is used.
+2. **Put the export in the project folder**, e.g. in `chatExport/`. That folder is git-ignored.
+3. **Run it:**
+
+   ```bash
+   python3 main.py chatExport/result.json
+   ```
+
+   Without a path, it asks for one. To try it first on the fake chat:
+
+   ```bash
+   python3 main.py samples/sample_chat.json
+   ```
+
+## The menu
 
 ```
 1) Show all messages      every message in date order, as "Sender: text"
-2) Show statistics        the fun facts report
+2) Show statistics        the full fun facts report
 3) Exit
 ```
 
-After showing either one, you can export it to a text file, go back to the menu, or exit. Exports are
-saved to `exports/` by default. That folder is git-ignored because the files can contain your
-messages.
+After either view you can **export it to a file**, go back to the menu, or exit. Files are saved in
+`reports/`, named like `statistics_2026-11-13_22-15.txt` so a new save never overwrites an old one.
 
-Try it on the included fake chat:
+## What's in the report
 
-```bash
-python3 main.py samples/sample_chat.json
-```
-
-Run the tests:
-
-```bash
-python3 -m unittest
-```
-
-No third-party packages needed (Python 3.9+).
+| Section | What it shows |
+|---|---|
+| **The basics** | First message ever, total messages, each person's share |
+| **Conversations** | Who starts conversations, reply times, quoted replies, double-texting, edited messages |
+| **Time** | Busiest hour (with a 24-hour chart), longest streak of days talking, longest silences |
+| **Media and calls** | Voice and round video messages, stickers and favourite sticker emoji, calls and talk time |
+| **What you write** | Most repeated messages, your tracked words, most used emoji, emoji per 100 messages |
+| **Days and months** | Busiest days (each with a short description), quietest days, messages per month |
 
 ### Tracked words
 
-To count specific words, copy the example file and put one word per line in it:
+To count specific words, create your own list from the example and put one word per line in it:
 
 ```bash
 cp tracked_words.example.txt tracked_words.txt
 ```
 
-A word ending in `*` also matches longer words that start with it (`capy*` matches "capybara").
-Case and Romanian diacritics don't matter. `tracked_words.txt` is git-ignored, so your list stays
-private.
+A word ending in `*` also matches longer words, e.g. `capy*` matches "capybara". Case and Romanian
+diacritics don't matter: "și", "şi" and "si" all count as the same word.
 
-## How it's organised
+## Privacy
 
-- `telegram_loader.py` turns the Telegram export into `{"messages": [...], "calls": [...]}`, made of
-  plain dicts. The full list of fields is in the spec linked below.
-- `stats.py` has one small function per fun fact. Each takes the messages (or calls) list.
-- `emoji_finder.py` finds emoji in message text using only the standard library.
-- `text_tools.py` splits text into words, lowercased and with Romanian diacritics flattened.
-- `report.py` turns messages and stats into lines of text: the message list and the statistics report.
-- `main.py` is the menu (TUI). It shows those lines and saves them to a file.
+Chat exports are private. The project keeps them out of git:
 
-The structure of Telegram's `result.json` is documented in
-[TELEGRAM_EXPORT_FORMAT.md](TELEGRAM_EXPORT_FORMAT.md).
+- `chatExport/` and `data/`: put your exports here
+- `reports/`: saved reports, which can contain your messages
+- `tracked_words.txt`: your word list
 
-To add another platform (e.g. Instagram), write a loader that returns the same message dicts
-and every stat works on it unchanged.
+Nothing is uploaded anywhere. The parser only reads the file you give it.
 
-## Roadmap
+## Project layout
 
-- [x] First message ever (Telegram)
-- [ ] First message ever across Telegram + Instagram
-- [x] Total number of messages
-- [x] Messages per person and the percentage difference
-- [x] Number of voice / round video messages ("lost information")
-- [x] Top 10 days by number of messages
-- [x] Short description for each top day
-- [x] Messages per month
-- [ ] Number of memes sent on Instagram
-- [x] Most repeated messages and how often they appear
-- [x] Stats for specific words (see "Tracked words" above)
-- [x] Most used emoji in messages, overall and each person's favourites
-- [x] Messages-to-emoji ratio, and the most emoji-heavy days
-- [x] Worst days: the days with the fewest messages
+```
+main.py                       the menu: load a chat, show or save the results
+telegram_parser/
+    loader.py                 reads the export into plain message and call dicts
+    stats.py                  one small function per fun fact
+    report.py                 turns the stats into the text report
+    emoji_finder.py           finds emoji in text (standard library only)
+    text_tools.py             words, lowercase, Romanian diacritics
+docs/TELEGRAM_EXPORT_FORMAT.md  what's inside Telegram's export file
+samples/sample_chat.json      a small fake chat used by the tests and demos
+tests/                        unit tests
+```
 
-### How you talk (dates, senders and media only, no message text needed)
+Settings such as the 6-hour conversation gap or the 1-hour double-text wait are constants at the top
+of `telegram_parser/stats.py`.
 
-- [x] Calls: total call time, longest call, missed / declined calls
-- [x] Who starts conversations (first message after a gap of several hours)
-- [x] Average reply time per person
-- [x] Busiest hour of the day
-- [x] Longest streak of consecutive days talking
-- [x] Longest silence
-- [x] Double-texting (texting again after more than an hour without a reply)
-- [x] Edited messages per person
-- [x] How often each person replies to a specific message
-- [x] Favourite sticker emoji
+## Tests
+
+```bash
+python3 -m unittest
+```
+
+## License
+
+GPL-2.0. See [LICENSE](LICENSE).

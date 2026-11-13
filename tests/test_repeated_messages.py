@@ -1,8 +1,8 @@
 import unittest
 from datetime import datetime, timedelta
 
-import report
-import stats
+from telegram_parser import report
+from telegram_parser import stats
 
 START = datetime(2023, 1, 1, 10, 0)
 

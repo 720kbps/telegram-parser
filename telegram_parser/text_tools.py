@@ -1,3 +1,5 @@
+"""Normalize text and split it into words, so the same word is counted the same way everywhere."""
+
 import re
 
 # Romanian is often typed without diacritics, and ș/ț exist in two Unicode forms (comma below and the
