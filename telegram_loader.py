@@ -40,11 +40,16 @@ def make_message(msg, latest_names):
     """Turn one raw "message" entry into a plain message dict."""
     return {
         "platform": "telegram",
+        "id": msg.get("id"),
         "sender": latest_names.get(msg["from_id"], "Deleted account"),
         "date": datetime.fromisoformat(msg["date"]),
         "text": extract_text(msg),
         "kind": find_kind(msg),
         "duration": msg.get("duration_seconds", 0),
+        "edited": "edited" in msg,
+        # The id of the message this one replies to, or None. It can point outside the export.
+        "reply_to": msg.get("reply_to_message_id"),
+        "sticker_emoji": msg.get("sticker_emoji", ""),
     }
 
 

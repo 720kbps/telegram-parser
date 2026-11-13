@@ -47,9 +47,10 @@ No third-party packages needed (Python 3.9+).
 
 ## How it's organised
 
-- `telegram_loader.py` turns the Telegram export into a plain list of message dicts:
-  `platform`, `sender`, `date`, `text`, `kind`, `duration`.
-- `stats.py` has one small function per fun fact. Each takes that list.
+- `telegram_loader.py` turns the Telegram export into `{"messages": [...], "calls": [...]}`, made of
+  plain dicts. The full list of fields is in the spec linked below.
+- `stats.py` has one small function per fun fact. Each takes the messages (or calls) list.
+- `emoji_finder.py` finds emoji in message text using only the standard library.
 - `report.py` turns messages and stats into lines of text: the message list and the statistics report.
 - `main.py` is the menu (TUI). It shows those lines and saves them to a file.
 
@@ -72,6 +73,7 @@ and every stat works on it unchanged.
 - [ ] Number of memes sent on Instagram
 - [ ] Most repeated messages and how often they appear
 - [ ] Stats for specific words
+- [x] Most used emoji in messages, overall and each person's favourites
 - [ ] Messages-to-emoji ratio (and the worst days)
 
 ### How you talk (dates, senders and media only, no message text needed)
@@ -82,7 +84,7 @@ and every stat works on it unchanged.
 - [x] Busiest hour of the day
 - [x] Longest streak of consecutive days talking
 - [x] Longest silence
-- [ ] Double-texting (several messages in a row before the other person replies)
-- [ ] Edited messages per person
-- [ ] How often each person replies to a specific message
-- [ ] Favourite sticker emoji
+- [x] Double-texting (texting again after more than an hour without a reply)
+- [x] Edited messages per person
+- [x] How often each person replies to a specific message
+- [x] Favourite sticker emoji

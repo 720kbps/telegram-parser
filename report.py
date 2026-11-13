@@ -142,6 +142,68 @@ def busiest_hour_lines(messages):
     return lines
 
 
+def emoji_lines(messages):
+    """Describe the emoji typed in messages: the most used overall and each person's favourites."""
+    counts = stats.emoji_counts(messages)
+    lines = [f"Emoji in messages: {counts['total']} used"]
+    if counts["total"] == 0:
+        return lines
+
+    top = []
+    for emoji, count in counts["overall"].most_common(10):
+        top.append(f"{emoji} {count}")
+    lines.append(f"  Top emoji: {', '.join(top)}")
+
+    message_totals = stats.messages_per_person(messages)
+    rows = []
+    for sender, person_counts in counts["per_person"].items():
+        rows.append((sum(person_counts.values()), sender))
+    rows.sort(reverse=True)
+
+    for used, sender in rows:
+        if used == 0:
+            lines.append(f"  {sender}: no emoji")
+            continue
+        percent = counts["messages_with_emoji"][sender] / message_totals[sender] * 100
+        favourites = []
+        for emoji, count in counts["per_person"][sender].most_common(3):
+            favourites.append(f"{emoji} {count}")
+        lines.append(f"  {sender}: {used} emoji, in {percent:.1f}% of their messages, favourites {', '.join(favourites)}")
+    return lines
+
+
+def sticker_lines(messages):
+    """Describe how many stickers were sent, the top sticker emoji and each person's favourite."""
+    counts = stats.sticker_emoji_counts(messages)
+    lines = [f"Stickers: {counts['total']} sent"]
+    if counts["total"] == 0:
+        return lines
+
+    if counts["overall"]:
+        top = []
+        for emoji, count in counts["overall"].most_common(5):
+            top.append(f"{emoji} {count}")
+        lines.append(f"  Top sticker emoji: {', '.join(top)}")
+
+    # Most stickers first; people with the same count are listed by name.
+    rows = sorted(stats.stickers_per_person(messages).items(), key=lambda row: (-row[1], row[0]))
+    for sender, sent in rows:
+        noun = "sticker" if sent == 1 else "stickers"
+        # most_common keeps the first-seen emoji first on a tie, so that one is the favourite.
+        favourite = counts["per_person"][sender].most_common(1)
+        if favourite:
+            emoji, count = favourite[0]
+            lines.append(f"  {sender}: {sent} {noun}, favourite {emoji} ({count})")
+        else:
+            lines.append(f"  {sender}: {sent} {noun}, none with an emoji")
+
+    missing = counts["without_emoji"]
+    if missing > 0:
+        noun = "sticker has" if missing == 1 else "stickers have"
+        lines.append(f"  {missing} {noun} no emoji")
+    return lines
+
+
 def starters_lines(messages):
     """Describe who starts conversations after a long silence."""
     gap_hours = int(stats.CONVERSATION_GAP.total_seconds() // 3600)
@@ -176,6 +238,28 @@ def streak_lines(messages):
     return lines
 
 
+def edited_lines(messages):
+    """Describe how many messages were edited overall and per person, highest edit share first."""
+    per_person = stats.edited_per_person(messages)
+    total = len(messages)
+    edited = 0
+    for counts in per_person.values():
+        edited += counts["edited"]
+    if edited == 0:
+        return ["Edited messages: none"]
+
+    lines = [f"Edited messages: {edited} ({edited / total * 100:.1f}% of all messages)"]
+    rows = []
+    for sender, counts in per_person.items():
+        rows.append((counts["edited"] / counts["total"] * 100, sender, counts))
+    # Sort on the percentage only, so a tie keeps the order people first appear in.
+    rows.sort(key=lambda row: row[0], reverse=True)
+
+    for percent, sender, counts in rows:
+        lines.append(f"  {sender}: {counts['edited']} of {counts['total']} ({percent:.1f}%)")
+    return lines
+
+
 def reply_time_lines(messages):
     """Describe how fast each person usually replies to the other."""
     lines = ["Reply time:"]
@@ -192,6 +276,35 @@ def reply_time_lines(messages):
     return lines
 
 
+def times_word(count):
+    """Return "1 time" or "N times" for a count."""
+    if count == 1:
+        return "1 time"
+    return f"{count} times"
+
+
+def reply_lines(messages):
+    """Describe how often each person quotes a specific message and how often they get quoted."""
+    lines = ["Replies (quoting a specific message):"]
+    per_person = stats.replies_per_person(messages)
+    if not per_person:
+        lines.append("  No messages to measure.")
+        return lines
+
+    rows = []
+    for sender, counts in per_person.items():
+        rows.append((sender, counts))
+    # Sort on the reply count only, so a tie keeps the order people first appear in.
+    rows.sort(key=lambda row: row[1]["replies"], reverse=True)
+
+    for sender, counts in rows:
+        percent = counts["replies"] / counts["total"] * 100
+        replied = times_word(counts["replies"])
+        got = times_word(counts["replied_to"])
+        lines.append(f"  {sender}: replied {replied} ({percent:.1f}% of their messages), got replied to {got}")
+    return lines
+
+
 def silence_lines(messages):
     """Describe the longest gaps between messages and who broke each silence."""
     lines = ["Longest silences:"]
@@ -205,6 +318,27 @@ def silence_lines(messages):
         start = f"{silence['start']:%d %b %Y %H:%M}"
         end = f"{silence['end']:%d %b %Y %H:%M}"
         lines.append(f"  {number}. {duration}: {start} → {end}, broken by {silence['broken_by']}")
+    return lines
+
+
+def double_text_lines(messages):
+    """Describe how often each person texts again after waiting over an hour without a reply."""
+    gap_hours = int(stats.DOUBLE_TEXT_GAP.total_seconds() // 3600)
+    lines = [f"Double-texting (texting again after more than {gap_hours}h without a reply):"]
+    totals = stats.double_texts(messages)
+    if not totals:
+        lines.append("  No messages to measure.")
+        return lines
+
+    # Python's sort is stable, so people with the same count keep the order they first appeared in.
+    ranked = sorted(totals.items(), key=lambda item: item[1]["count"], reverse=True)
+    for sender, result in ranked:
+        if result["count"] == 0:
+            lines.append(f"  {sender}: 0 times")
+            continue
+        wait = format_duration(round(result["longest_wait"]))
+        date = f"{result['longest_date']:%d %b %Y}"
+        lines.append(f"  {sender}: {times_word(result['count'])}, longest wait {wait} before texting again ({date})")
     return lines
 
 
@@ -243,10 +377,15 @@ def stats_lines(chat):
         people_lines(messages),
         starters_lines(messages),
         reply_time_lines(messages),
+        reply_lines(messages),
+        double_text_lines(messages),
+        edited_lines(messages),
         busiest_hour_lines(messages),
         streak_lines(messages),
         silence_lines(messages),
         voice_and_video_lines(messages),
+        emoji_lines(messages),
+        sticker_lines(messages),
         calls_lines(chat["calls"]),
         top_days_lines(messages),
         months_lines(messages),

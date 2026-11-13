@@ -2,8 +2,13 @@ import statistics
 from collections import Counter
 from datetime import timedelta
 
+from emoji_finder import find_emoji
+
 # A message after this much silence starts a new conversation instead of replying.
 CONVERSATION_GAP = timedelta(hours=6)
+
+# Texting again after waiting longer than this, without getting a reply, counts as a double text.
+DOUBLE_TEXT_GAP = timedelta(hours=1)
 
 
 def messages_per_person(messages):
@@ -80,6 +85,50 @@ def busiest_hour_per_person(messages):
     return result
 
 
+def emoji_counts(messages):
+    """Count the emoji typed in message text, overall and per person, and how many messages had any."""
+    result = {"overall": Counter(), "per_person": {}, "messages_with_emoji": Counter(), "total": 0}
+    for msg in messages:
+        # Add everyone, so a person who never uses emoji still shows up in the report.
+        person_counts = result["per_person"].setdefault(msg["sender"], Counter())
+        found = find_emoji(msg["text"])
+        if not found:
+            continue
+        result["messages_with_emoji"][msg["sender"]] += 1
+        result["total"] += len(found)
+        for emoji in found:
+            result["overall"][emoji] += 1
+            person_counts[emoji] += 1
+    return result
+
+
+def sticker_emoji_counts(messages):
+    """Count the emoji linked to each sticker, overall and per person, plus stickers without one."""
+    result = {"overall": Counter(), "per_person": {}, "total": 0, "without_emoji": 0}
+    for msg in messages:
+        if msg["kind"] != "sticker":
+            continue
+        result["total"] += 1
+        # Add the sender even when the emoji is empty, so everyone who sent stickers is listed.
+        person_counts = result["per_person"].setdefault(msg["sender"], Counter())
+        emoji = msg["sticker_emoji"]
+        if emoji == "":
+            result["without_emoji"] += 1
+        else:
+            result["overall"][emoji] += 1
+            person_counts[emoji] += 1
+    return result
+
+
+def stickers_per_person(messages):
+    """Count how many sticker messages each person sent, with or without an emoji."""
+    counts = Counter()
+    for msg in messages:
+        if msg["kind"] == "sticker":
+            counts[msg["sender"]] += 1
+    return counts
+
+
 def conversation_starters(messages):
     """Count who sends the first message after a silence of CONVERSATION_GAP or more."""
     counts = Counter()
@@ -124,6 +173,19 @@ def days_talked(messages):
     return {"talked": len(days), "total": total}
 
 
+def edited_per_person(messages):
+    """Count each person's edited messages and their total messages, media included."""
+    result = {}
+    for msg in messages:
+        sender = msg["sender"]
+        if sender not in result:
+            result[sender] = {"edited": 0, "total": 0}
+        result[sender]["total"] += 1
+        if msg["edited"]:
+            result[sender]["edited"] += 1
+    return result
+
+
 def reply_times(messages):
     """Return each person's median and average reply time in seconds, plus how many replies were measured."""
     # A reply is a message from a different person than the one before it. It's measured from the
@@ -147,6 +209,27 @@ def reply_times(messages):
     return summary
 
 
+def replies_per_person(messages):
+    """Count each person's replies, total messages, and how often others replied to them."""
+    sender_by_id = {}
+    result = {}
+    for msg in messages:
+        sender_by_id[msg["id"]] = msg["sender"]
+        result.setdefault(msg["sender"], {"replies": 0, "total": 0, "replied_to": 0})
+
+    for msg in messages:
+        counts = result[msg["sender"]]
+        counts["total"] += 1
+        if msg["reply_to"] is None:
+            continue
+        counts["replies"] += 1
+        # The quoted message may be missing from the export (deleted or older), so nobody gets credit.
+        quoted_sender = sender_by_id.get(msg["reply_to"])
+        if quoted_sender is not None and quoted_sender != msg["sender"]:
+            result[quoted_sender]["replied_to"] += 1
+    return result
+
+
 def longest_silences(messages, how_many=3):
     """Return the longest gaps between two consecutive messages, longest first, with who broke each one."""
     gaps = []
@@ -165,6 +248,27 @@ def longest_silences(messages, how_many=3):
     # Python's sort is stable, so equal gaps stay in the order they happened.
     gaps.sort(key=lambda gap: gap["seconds"], reverse=True)
     return gaps[:how_many]
+
+
+def double_texts(messages):
+    """Count each person's double texts: messages sent more than DOUBLE_TEXT_GAP after their own last one, with no reply between."""
+    # Quick follow-ups within the hour are just someone typing in several messages, not a double text.
+    # There's no upper limit: texting again the next morning after being left on read counts too.
+    # "longest_wait" is in seconds, and "longest_date" is when they finally texted again.
+    result = {}
+    previous = None
+    for msg in messages:
+        totals = result.setdefault(msg["sender"], {"count": 0, "longest_wait": 0, "longest_date": None})
+        if previous is not None and msg["sender"] == previous["sender"]:
+            wait = (msg["date"] - previous["date"]).total_seconds()
+            if wait > DOUBLE_TEXT_GAP.total_seconds():
+                totals["count"] += 1
+                # Only a strictly longer wait replaces the record, so ties keep the earliest one.
+                if wait > totals["longest_wait"]:
+                    totals["longest_wait"] = wait
+                    totals["longest_date"] = msg["date"]
+        previous = msg
+    return result
 
 
 def call_summary(calls):

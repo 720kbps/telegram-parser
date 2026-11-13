@@ -32,6 +32,18 @@ class LoaderTest(unittest.TestCase):
         msg = {"text": ["see ", {"type": "bold", "text": "this"}, "!"]}
         self.assertEqual(extract_text(msg), "see this!")
 
+    def test_reads_edits_replies_and_sticker_emoji(self):
+        """The loader keeps the id, edited flag, reply target and sticker emoji of each message."""
+        by_id = {}
+        for msg in self.messages:
+            by_id[msg["id"]] = msg
+        self.assertTrue(by_id[1]["edited"])
+        self.assertFalse(by_id[2]["edited"])
+        self.assertEqual(by_id[4]["reply_to"], 3)
+        self.assertIsNone(by_id[2]["reply_to"])
+        self.assertEqual(by_id[8]["sticker_emoji"], "😂")
+        self.assertEqual(by_id[2]["sticker_emoji"], "")
+
     def test_renamed_person_counts_once(self):
         """Someone who changed their name counts as one person, under their newest name."""
         raw = [

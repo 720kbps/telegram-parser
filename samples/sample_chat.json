@@ -8,6 +8,8 @@
    "type": "message",
    "date": "2023-01-05T21:14:03",
    "date_unixtime": "1672946043",
+   "edited": "2023-01-05T21:14:30",
+   "edited_unixtime": "1672946070",
    "from": "Alex",
    "from_id": "user1001",
    "text": "hey, is this the right chat?",
@@ -28,6 +30,8 @@
    "type": "message",
    "date": "2023-01-05T21:15:40",
    "date_unixtime": "1672946140",
+   "edited": "2023-01-05T21:17:00",
+   "edited_unixtime": "1672946220",
    "from": "Sam",
    "from_id": "user1002",
    "text": ["check this out ", {"type": "link", "text": "https://example.com"}],
@@ -43,8 +47,9 @@
    "date_unixtime": "1672946162",
    "from": "Alex",
    "from_id": "user1001",
-   "text": "haha",
-   "text_entities": [{"type": "plain", "text": "haha"}]
+   "reply_to_message_id": 3,
+   "text": "haha 😂😂",
+   "text_entities": [{"type": "plain", "text": "haha 😂😂"}]
   },
   {
    "id": 5,
@@ -120,6 +125,7 @@
    "date_unixtime": "1676392260",
    "from": "Sam",
    "from_id": "user1002",
+   "reply_to_message_id": 9,
    "file": "voice_messages/audio_2@14-02-2023_18-31-00.ogg",
    "media_type": "voice_message",
    "mime_type": "audio/ogg",

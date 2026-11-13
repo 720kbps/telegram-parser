@@ -310,12 +310,16 @@ Each `"message"` entry becomes:
 
 | Output key | Source |
 |------------|--------|
-| `platform` | always `"telegram"` |
-| `sender`   | newest non-null `from` seen for that `from_id`, else `"Deleted account"` |
-| `date`     | `date`, parsed with `datetime.fromisoformat` |
-| `text`     | joined `text_entities`, falling back to `text` |
-| `kind`     | `media_type` → `"photo"` if `photo` → `"file"` if `file` → `"text"` |
-| `duration` | `duration_seconds`, or `0` |
+| `platform`      | always `"telegram"` |
+| `id`            | `id` |
+| `sender`        | newest non-null `from` seen for that `from_id`, else `"Deleted account"` |
+| `date`          | `date`, parsed with `datetime.fromisoformat` |
+| `text`          | joined `text_entities`, falling back to `text` |
+| `kind`          | `media_type` → `"photo"` if `photo` → `"file"` if `file` → `"text"` |
+| `duration`      | `duration_seconds`, or `0` |
+| `edited`        | `True` if the entry has an `edited` field |
+| `reply_to`      | `reply_to_message_id`, or `None`. It can point to a message that isn't in the export. |
+| `sticker_emoji` | `sticker_emoji`, or `""` |
 
 Each `phone_call` entry becomes:
 
