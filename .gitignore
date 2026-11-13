@@ -3,6 +3,8 @@ chatExport/
 data/
 reports/
 tracked_words.txt
+/WhatsApp Chat*
+/_chat.txt
 
 # Python
 __pycache__/

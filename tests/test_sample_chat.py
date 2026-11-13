@@ -36,7 +36,7 @@ class LoaderTest(unittest.TestCase):
         """The chat's name comes from the export, with a fallback when it's missing."""
         self.assertEqual(load_telegram(SAMPLE_PATH)["name"], "Sam")
         with tempfile.TemporaryDirectory() as folder:
-            path = Path(folder) / "chatNastea.json"
+            path = Path(folder) / "chatNasteaOld.json"
             path.write_text(json.dumps({"name": None, "messages": []}), encoding="utf-8")
             self.assertEqual(load_telegram(path)["name"], "Telegram chat")
 
@@ -59,7 +59,7 @@ class LoaderTest(unittest.TestCase):
             {"type": "message", "date": "2023-01-02T10:00:00", "from": "New name", "from_id": "user1", "text": "b"},
         ]
         with tempfile.TemporaryDirectory() as folder:
-            path = Path(folder) / "chatNastea.json"
+            path = Path(folder) / "chatNasteaOld.json"
             path.write_text(json.dumps({"messages": raw}), encoding="utf-8")
             messages = load_telegram(path)["messages"]
 

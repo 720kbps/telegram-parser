@@ -1,14 +1,15 @@
-"""Text menu: load a Telegram chat export, then show the messages or the fun facts, or save them to reports/."""
+"""Text menu: load a Telegram or WhatsApp chat export, then show the messages or the fun facts, or save them to reports/."""
 
 import argparse
 import os
 import re
 import webbrowser
+import zipfile
 from datetime import datetime
 from pathlib import Path
 
 from telegram_parser import html_report, report
-from telegram_parser.loader import load_telegram
+from telegram_parser.chat_loader import find_export_in_folder, load_chat, source_name
 
 PROJECT_FOLDER = Path(__file__).parent
 # Reports can contain private messages, so they always go in this git-ignored folder.
@@ -118,7 +119,10 @@ def run_menu(chat):
     messages = chat["messages"]
     while True:
         print()
-        print(f"=== Telegram chat: {len(messages)} messages, {len(chat['calls'])} calls ===")
+        header = f"{source_name(chat)} chat with {chat['name']}: {len(messages):,} messages"
+        if chat["calls"]:
+            header += f", {len(chat['calls']):,} calls"
+        print(f"=== {header} ===")
         print("1) Show all messages")
         print("2) Show statistics")
         print("3) Save the Wrapped page (HTML)")
@@ -155,34 +159,36 @@ def clean_typed_path(text):
 def find_export_file(text):
     """Return the export file to load from what the user typed, accepting the export folder too."""
     path = Path(clean_typed_path(text)).expanduser()
-    # Telegram saves the export as a folder with result.json inside, and people often drag the folder.
-    if path.is_dir() and (path / "result.json").exists():
-        return path / "result.json"
+    # People often drag the whole export folder instead of the file inside it.
+    if path.is_dir():
+        found = find_export_in_folder(path)
+        if found is not None:
+            return found
     return path
 
 
 def main():
     """Load the chat export given on the command line (or ask for it) and start the menu."""
-    parser = argparse.ArgumentParser(description="Fun facts from a Telegram chat export.")
-    parser.add_argument("export_path", nargs="?", help="the result.json from Telegram Desktop, or its folder")
+    parser = argparse.ArgumentParser(description="Fun facts from a Telegram or WhatsApp chat export.")
+    parser.add_argument("export_path", nargs="?", help="Telegram's result.json, a WhatsApp .zip or .txt, or their folder")
     args = parser.parse_args()
 
     try:
         typed = args.export_path
         if not typed:
-            print("Drag your Telegram export (the result.json file or its folder) into this window,")
-            typed = input("then press Enter: ")
+            print("Drag your chat export into this window (Telegram: the result.json or its folder,")
+            typed = input("WhatsApp: the .zip or .txt), then press Enter: ")
         export_file = find_export_file(typed)
         if export_file.is_dir():
-            # Usually an HTML export: the folder has messages.html instead of result.json.
-            print(f"There's no result.json in {export_file}.")
-            print("Export the chat again with Format: Machine-readable JSON.")
+            # Usually a Telegram HTML export: the folder has messages.html instead of result.json.
+            print(f"There's no chat export in {export_file}.")
+            print("For Telegram, export the chat again with Format: Machine-readable JSON.")
             return
         try:
-            chat = load_telegram(export_file)
-        except (OSError, ValueError) as error:
-            # OSError: the file is missing or it's a folder without result.json.
-            # ValueError: broken JSON, or a whole-account export instead of a single chat.
+            chat = load_chat(export_file)
+        except (OSError, ValueError, zipfile.BadZipFile) as error:
+            # OSError: the file is missing. ValueError: broken JSON, a whole-account Telegram export,
+            # or a text file that isn't a WhatsApp chat.
             print(f"Could not load the chat from {export_file}: {error}")
             return
 

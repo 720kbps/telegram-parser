@@ -319,22 +319,43 @@ def silence_lines(messages):
 # --------------------------------------------------------------------------------------------------
 
 
-def voice_and_video_lines(messages):
-    """Describe how many voice and round video messages were sent and their total length."""
+def voice_and_video_lines(messages, with_durations=True):
+    """Describe how many voice and round video messages were sent and, if known, their total length."""
     lines = ["Lost information (not in the export as text):"]
     totals = stats.voice_and_video(messages)
     for kind, label in KIND_LABELS.items():
         count = totals[kind]["count"]
-        duration = format_duration(totals[kind]["seconds"])
-        lines.append(f"  {label}: {count} ({duration})")
+        if with_durations:
+            lines.append(f"  {label}: {count} ({format_duration(totals[kind]['seconds'])})")
+        elif count > 0:
+            # WhatsApp exports only say "audio omitted", without how long it was.
+            lines.append(f"  {label}: {count}")
+    if not with_durations:
+        # Android WhatsApp exports only say "<Media omitted>", without the kind of media.
+        unknown = 0
+        for msg in messages:
+            if msg["kind"] == "media":
+                unknown += 1
+        if unknown > 0:
+            lines.append(f"  Media (photos, videos, voice notes, stickers…): {unknown}")
+    if len(lines) == 1:
+        return []
     return lines
 
 
-def sticker_lines(messages):
+def sticker_lines(messages, with_emoji=True):
     """Describe how many stickers were sent, the top sticker emoji and each person's favourite."""
     counts = stats.sticker_emoji_counts(messages)
     lines = [f"Stickers: {counts['total']} sent"]
     if counts["total"] == 0:
+        # Android WhatsApp exports can't tell stickers from other media, so "0" might be wrong there.
+        if not with_emoji:
+            return []
+        return lines
+    if not with_emoji:
+        # WhatsApp exports don't say which emoji a sticker has, so only the counts are known.
+        for sender, sent in stats.stickers_per_person(messages).most_common():
+            lines.append(f"  {sender}: {sent} {'sticker' if sent == 1 else 'stickers'}")
         return lines
 
     if counts["overall"]:
@@ -602,17 +623,25 @@ def months_lines(messages):
 def stats_lines(chat):
     """Return the full statistics report for a loaded chat, grouped under headings."""
     messages = chat["messages"]
+    # WhatsApp exports have no quoted replies, calls, voice note lengths or sticker emoji,
+    # so those sections are left out instead of showing zeros.
+    full_data = chat.get("source", "telegram") == "telegram"
+
+    conversations = [starters_lines(messages), reply_time_lines(messages)]
+    if full_data:
+        conversations.append(reply_lines(messages))
+    conversations.append(double_text_lines(messages))
+    conversations.append(edited_lines(messages))
+
+    media = [voice_and_video_lines(messages, full_data), sticker_lines(messages, full_data)]
+    if full_data:
+        media.append(calls_lines(chat["calls"]))
+
     groups = [
         ("The basics", [first_message_lines(messages), people_lines(messages)]),
-        ("Conversations", [
-            starters_lines(messages),
-            reply_time_lines(messages),
-            reply_lines(messages),
-            double_text_lines(messages),
-            edited_lines(messages),
-        ]),
+        ("Conversations", conversations),
         ("Time", [busiest_hour_lines(messages), streak_lines(messages), silence_lines(messages)]),
-        ("Media and calls", [voice_and_video_lines(messages), sticker_lines(messages), calls_lines(chat["calls"])]),
+        ("Media and calls" if full_data else "Media", media),
         ("What you write", [
             repeated_message_lines(messages),
             tracked_word_lines(messages),
@@ -628,6 +657,8 @@ def stats_lines(chat):
             lines.append("")
         lines.append(f"===== {title} =====")
         for section in sections:
-            lines.append("")
-            lines.extend(section)
+            # A section with nothing to say returns no lines at all.
+            if section:
+                lines.append("")
+                lines.extend(section)
     return lines

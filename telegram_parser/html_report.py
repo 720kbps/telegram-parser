@@ -4,6 +4,7 @@ from datetime import datetime
 from html import escape
 
 from telegram_parser import report, stats
+from telegram_parser.chat_loader import source_name
 
 # Each person gets the same color everywhere on the page, in order of who sent the most messages.
 PERSON_COLORS = ["var(--person-1)", "var(--person-2)", "var(--person-3)", "var(--person-4)"]
@@ -195,16 +196,14 @@ def hero(chat):
     first_day = messages[0]["date"]
     last_day = messages[-1]["date"]
     talked = stats.days_talked(messages)
-    facts = [
-        f"{first_day:%d %b %Y} – {last_day:%d %b %Y}",
-        f"{len(messages):,} messages",
-        f"{len(chat['calls']):,} calls",
-        f"{talked['talked']:,} days talked",
-    ]
+    facts = [f"{first_day:%d %b %Y} – {last_day:%d %b %Y}", f"{len(messages):,} messages"]
+    if chat["calls"]:
+        facts.append(f"{len(chat['calls']):,} calls")
+    facts.append(f"{talked['talked']:,} days talked")
     fact_html = "".join(f"<span>{escape(fact)}</span>" for fact in facts)
     return (
         '<header class="hero">'
-        '<div class="eyebrow">Telegram chat, wrapped</div>'
+        f'<div class="eyebrow">{escape(source_name(chat))} chat, wrapped</div>'
         f"<h1>{escape(chat['name'])}</h1>"
         f'<div class="facts">{fact_html}</div>'
         "</header>"
@@ -285,8 +284,8 @@ def double_text_card(messages):
     return card("Double-texting", f"{top['count']:,}", sub, row_list(rows))
 
 
-def replies_edits_card(messages):
-    """Show how often each person quotes a message in a reply and how often they edit messages."""
+def replies_edits_card(messages, with_replies=True):
+    """Show how often each person edits messages and, when the export has replies, quotes a message."""
     replies = stats.replies_per_person(messages)
     edits = stats.edited_per_person(messages)
     total_edited = 0
@@ -294,13 +293,18 @@ def replies_edits_card(messages):
     for sender, counts in edits.items():
         total_edited += counts["edited"]
         percent = counts["edited"] / counts["total"] * 100
-        quoted = replies[sender]["replies"]
-        quoted_text = counted(quoted, "quoted reply", "quoted replies")
-        edited_text = counted(counts["edited"], "edit", "edits")
-        rows.append((sender, f"{quoted_text} · {edited_text} ({percent:.0f}%)"))
+        edited_text = f"{counted(counts['edited'], 'edit', 'edits')} ({percent:.0f}%)"
+        if with_replies:
+            quoted_text = counted(replies[sender]["replies"], "quoted reply", "quoted replies")
+            edited_text = f"{quoted_text} · {edited_text}"
+        rows.append((sender, edited_text))
+    # Older WhatsApp exports don't mark edits either, so there's nothing to show.
+    if not with_replies and total_edited == 0:
+        return ""
     percent_all = total_edited / len(messages) * 100
     sub = f"messages were edited after sending ({percent_all:.1f}% of all of them)"
-    return card("Replies and edits", f"{total_edited:,}", sub, row_list(rows))
+    title = "Replies and edits" if with_replies else "Edits"
+    return card(title, f"{total_edited:,}", sub, row_list(rows))
 
 
 # --------------------------------------------------------------------------------------------------
@@ -387,9 +391,16 @@ def lost_information_card(messages):
     """Show how much voice and round video there is, which the export can't show as text."""
     totals = stats.voice_and_video(messages)
     seconds = totals["voice_message"]["seconds"] + totals["video_message"]["seconds"]
-    if seconds == 0:
+    count = totals["voice_message"]["count"] + totals["video_message"]["count"]
+    if count == 0:
         return ""
     rows = []
+    if seconds == 0:
+        # WhatsApp exports only say "audio omitted", without how long it was, so show counts.
+        for kind, label in report.KIND_LABELS.items():
+            if totals[kind]["count"] > 0:
+                rows.append((label, f"{totals[kind]['count']:,}"))
+        return card("Voice and video notes", f"{count:,}", "voice and video notes the export can't show as text", row_list(rows))
     for kind, label in report.KIND_LABELS.items():
         rows.append((label, f"{totals[kind]['count']:,} · {duration(totals[kind]['seconds'])}"))
     return card("Voice and video notes", duration(seconds), "of voice and round video messages", row_list(rows))
@@ -521,16 +532,22 @@ def page_sections(chat, tracked_words_path):
     """Return the page body: every group heading with its cards, leaving out cards with nothing to show."""
     messages = chat["messages"]
     colors = people_colors(messages)
+    # WhatsApp exports don't say which message a reply quotes, so that part is left out for them.
+    full_data = chat.get("source", "telegram") == "telegram"
     groups = [
         ("The basics", [messages_card(messages, colors), first_message_card(messages)]),
         ("Conversations", [
             starters_card(messages, colors),
             reply_time_card(messages, colors),
             double_text_card(messages),
-            replies_edits_card(messages),
+            replies_edits_card(messages, full_data),
         ]),
         ("Time", [busiest_hour_card(messages, colors), streak_card(messages), silence_card(messages)]),
-        ("Media and calls", [calls_card(chat["calls"]), lost_information_card(messages), sticker_card(messages, colors)]),
+        ("Media and calls" if chat["calls"] else "Media", [
+            calls_card(chat["calls"]),
+            lost_information_card(messages),
+            sticker_card(messages, colors),
+        ]),
         ("What you write", [emoji_card(messages), repeated_card(messages), tracked_words_card(messages, tracked_words_path)]),
         ("Days and months", [busiest_days_card(messages), quietest_days_card(messages), months_card(messages)]),
     ]
@@ -547,7 +564,7 @@ def page_sections(chat, tracked_words_path):
 
 def build_page(chat, tracked_words_path=report.TRACKED_WORDS_PATH):
     """Return the complete HTML page for a loaded chat, as a string."""
-    title = f"{chat['name']} · Telegram wrapped"
+    title = f"{chat['name']} · {source_name(chat)} wrapped"
     if chat["messages"]:
         body = hero(chat) + "\n" + page_sections(chat, tracked_words_path)
     else:

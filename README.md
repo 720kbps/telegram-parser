@@ -1,8 +1,8 @@
-# Telegram Wrapped
+# Chat Wrapped for Telegram and WhatsApp
 
-Turn any Telegram chat into a "Wrapped"-style page of fun facts: who texts more, who starts the
-conversations, how fast you each reply, your longest streak, your busiest hour, your favourite emoji,
-and more.
+Turn any Telegram or WhatsApp chat into a "Wrapped"-style page of fun facts: who texts more, who
+starts the conversations, how fast you each reply, your longest streak, your busiest hour, your
+favourite emoji, and more.
 
 Everything runs **on your own computer**. Your messages are never uploaded anywhere.
 
@@ -25,7 +25,12 @@ button) and run the installer like any other app.
 
 Afterwards, close any open Terminal or PowerShell windows, so the next one finds the new Python.
 
-### 2. Export your chat from Telegram
+### 2. Export your chat
+
+Follow the steps for the app your chat is in.
+
+<details open>
+<summary><b>Telegram</b></summary>
 
 Exporting only works in **Telegram Desktop**, the computer app from
 [desktop.telegram.org](https://desktop.telegram.org). The phone apps can't export chats.
@@ -40,6 +45,29 @@ Exporting only works in **Telegram Desktop**, the computer app from
    - Leave the dates on the full range, from the first message to now.
 4. Click **Export**. When it's done, click **Show my data**. You'll get a folder like
    `ChatExport_2024-05-16` with a file called **`result.json`** inside. Keep that window open.
+
+</details>
+
+<details open>
+<summary><b>WhatsApp</b></summary>
+
+WhatsApp exports chats from the **phone app**.
+
+- **iPhone:** open the chat, tap the person's or group's **name** at the top, scroll down and tap
+  **Export Chat**, then choose **Without Media**.
+- **Android:** open the chat, tap **⋮** (top right), then **More → Export chat**, and choose
+  **Without media**.
+
+Then send the file to your computer, e.g. AirDrop it, email it to yourself or save it to iCloud
+Drive / Google Drive. You'll get a file like **`WhatsApp Chat - Alex.zip`** (iPhone) or
+**`WhatsApp Chat with Alex.txt`** (Android). You don't need to unzip it.
+
+> WhatsApp exports have less detail than Telegram's. They don't include quoted replies, calls,
+> how long voice notes are, or sticker emoji, so those parts are left out. WhatsApp also limits
+> how many messages an export holds (tens of thousands, the most recent ones), so very long chats
+> may not go all the way back to the start.
+
+</details>
 
 ### 3. Download and start it
 
@@ -60,8 +88,9 @@ curl.exe -fL -o telegram-parser.zip https://github.com/720kbps/telegram-parser/a
 
 ### 4. Get your Wrapped
 
-1. It asks for your export: **drag the `ChatExport_...` folder** (or the `result.json` inside it)
-   into the terminal window, then press **Enter**.
+1. It asks for your export. **Drag it into the terminal window**, then press **Enter**:
+   - **Telegram:** the `ChatExport_...` folder, or the `result.json` inside it.
+   - **WhatsApp:** the `.zip` or `.txt` file.
 2. Type **`3`** and press Enter to save the Wrapped page.
 3. Type **`y`** and press Enter to open it in your browser. 🎉
 
@@ -96,10 +125,12 @@ long line from step 3 again. Your saved reports are kept.
   python.org as in step 1, then open a new Terminal window and try again.
 - **"python3 not found", or Windows opens the Microsoft Store:** go back to step 1. On Windows, make
   sure "Add python.exe to PATH" was ticked, then close and reopen PowerShell.
-- **"has no 'messages' list":** you exported your whole account instead of one chat. Use **Export
-  chat history** from inside the chat, as in step 2.
-- **"There's no result.json" or "Expecting value":** the chat was exported as HTML. Export it again
-  with **Format: Machine-readable JSON**.
+- **Telegram, "has no 'messages' list":** you exported your whole account instead of one chat. Use
+  **Export chat history** from inside the chat, as in step 2.
+- **Telegram, "There's no chat export" or "Expecting value":** the chat was exported as HTML. Export
+  it again with **Format: Machine-readable JSON**.
+- **WhatsApp, "doesn't look like a WhatsApp chat export":** make sure you dragged in the file you
+  got from **Export Chat**, not a different text file.
 - **"No such file or directory":** drag the folder or file into the window instead of typing its
   path.
 
@@ -144,6 +175,9 @@ messages (the very first one and the most repeated ones), so share it carefully.
 | **What you write** | Most repeated messages, your tracked words, most used emoji, emoji per 100 messages |
 | **Days and months** | Busiest days (each with a short description), quietest days, messages per month |
 
+For WhatsApp chats, the parts the export doesn't include are left out: quoted replies, calls, voice
+note lengths and sticker emoji.
+
 ### Count your own words (optional)
 
 To count how often certain words come up, make your own word list from the example. On a Mac, run:
@@ -162,7 +196,8 @@ words, e.g. `capy*` matches "capybara". Capital letters and Romanian diacritics 
 
 - The program only reads the export file you give it. Nothing is sent anywhere.
 - Your exports, saved reports and word list are kept out of git, so they can't be uploaded by
-  accident: `chatExport/`, `data/`, `reports/` and `tracked_words.txt`.
+  accident: `chatExport/`, `data/`, `reports/`, `tracked_words.txt`, and WhatsApp exports saved in
+  the project folder.
 
 ---
 
@@ -178,24 +213,33 @@ git clone https://github.com/720kbps/telegram-parser.git
 ```
 main.py                       the menu: load a chat, show or save the results
 telegram_parser/
-    loader.py                 reads the export into plain message and call dicts
+    chat_loader.py            picks the right loader for a Telegram or WhatsApp export
+    loader.py                 reads a Telegram export into plain message and call dicts
+    whatsapp_loader.py        reads a WhatsApp export into the same dicts
     stats.py                  one small function per fun fact
     report.py                 turns the stats into the text report
     html_report.py            turns the stats into the Wrapped web page
     emoji_finder.py           finds emoji in text
     text_tools.py             words, lowercase, Romanian diacritics
-docs/TELEGRAM_EXPORT_FORMAT.md  what's inside Telegram's export file
-samples/sample_chat.json      a small fake chat used by the tests and demos
+docs/                         what's inside Telegram's and WhatsApp's export files
+samples/                      small fake chats (Telegram, WhatsApp iPhone and Android) for tests and demos
 tests/                        unit tests
 ```
+
+The stats and both reports only see the plain message dicts, so they work the same for both apps.
+The package is still called `telegram_parser` from before WhatsApp support.
 
 Settings such as the 6-hour conversation gap or the 1-hour double-text wait are constants at the top
 of `telegram_parser/stats.py`.
 
-To try it on the fake chat and run the tests:
+To try it on the fake chats and run the tests:
 
 ```bash
 python3 main.py samples/sample_chat.json
+```
+
+```bash
+python3 main.py "samples/WhatsApp Chat - Sam.txt"
 ```
 
 ```bash
