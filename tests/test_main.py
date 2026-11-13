@@ -93,5 +93,35 @@ class SaveLinesTest(unittest.TestCase):
             self.assertTrue(path.exists())
 
 
+class SaveWrappedPageTest(unittest.TestCase):
+    def test_html_name_has_extension(self):
+        """The Wrapped page's default name ends in .html."""
+        name = main.default_file_name("wrapped", datetime(2026, 11, 13, 22, 15), extension="html")
+        self.assertEqual(name, "wrapped_2026-11-13_22-15.html")
+
+    def test_saves_page_without_opening(self):
+        """Answering "n" saves the page in the folder and doesn't open a browser."""
+        with tempfile.TemporaryDirectory() as temp:
+            folder = Path(temp) / "reports"
+            with patch("main.html_report.build_page", return_value="<html>page</html>"), \
+                    patch("builtins.input", return_value="n"), patch("builtins.print"), \
+                    patch("main.webbrowser.open") as browser:
+                path = main.save_wrapped_page({"name": "x"}, folder)
+            self.assertEqual(path.suffix, ".html")
+            self.assertEqual(path.parent, folder)
+            self.assertEqual(path.read_text(encoding="utf-8"), "<html>page</html>")
+            browser.assert_not_called()
+
+    def test_yes_opens_the_saved_file(self):
+        """Answering "y" opens the saved local file in the browser."""
+        with tempfile.TemporaryDirectory() as temp:
+            folder = Path(temp)
+            with patch("main.html_report.build_page", return_value="<html></html>"), \
+                    patch("builtins.input", return_value="y"), patch("builtins.print"), \
+                    patch("main.webbrowser.open") as browser:
+                path = main.save_wrapped_page({"name": "x"}, folder)
+            browser.assert_called_once_with(path.resolve().as_uri())
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -298,10 +298,12 @@ The `actor` of a `phone_call` is whoever started the call.
 
 ## 7. What the loader uses
 
-`load_telegram` in `telegram_parser/loader.py` returns a dict with two lists, both oldest first:
+`load_telegram` in `telegram_parser/loader.py` returns a dict with the chat's name and two lists,
+both oldest first:
 
 ```text
 chat
+├── name         the export's top-level name, or "Telegram chat" if it's null
 ├── messages[]   one per "message" entry
 └── calls[]      one per "phone_call" service entry
 ```

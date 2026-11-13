@@ -5,7 +5,7 @@ from datetime import datetime
 
 
 def load_telegram(path):
-    """Load a single-chat Telegram export and return {"messages": [...], "calls": [...]}, oldest first."""
+    """Load a single-chat Telegram export and return {"name", "messages": [...], "calls": [...]}, oldest first."""
     with open(path, encoding="utf-8") as f:
         export = json.load(f)
 
@@ -35,7 +35,9 @@ def load_telegram(path):
     calls = []
     for call in raw_calls:
         calls.append(make_call(call, latest_names))
-    return {"messages": messages, "calls": calls}
+    # The chat's title, or the other person's name in a 1:1 chat. It's null for a deleted account.
+    name = export.get("name") or "Telegram chat"
+    return {"name": name, "messages": messages, "calls": calls}
 
 
 def make_message(msg, latest_names):

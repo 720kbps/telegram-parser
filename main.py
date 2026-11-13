@@ -1,10 +1,11 @@
-"""Text menu: load a Telegram chat export, then show the messages or the fun facts and save them to reports/."""
+"""Text menu: load a Telegram chat export, then show the messages or the fun facts, or save them to reports/."""
 
 import argparse
+import webbrowser
 from datetime import datetime
 from pathlib import Path
 
-from telegram_parser import report
+from telegram_parser import html_report, report
 from telegram_parser.loader import load_telegram
 
 PROJECT_FOLDER = Path(__file__).parent
@@ -21,12 +22,12 @@ def ask_choice(prompt, choices):
         print(f"Please type one of: {', '.join(choices)}")
 
 
-def default_file_name(kind, now=None):
+def default_file_name(kind, now=None, extension="txt"):
     """Return a name like "statistics_2026-11-13_22-15.txt" for the given kind of report."""
     if now is None:
         now = datetime.now()
     # The date and time keep later saves from overwriting earlier ones.
-    return f"{kind}_{now.strftime('%Y-%m-%d_%H-%M')}.txt"
+    return f"{kind}_{now.strftime('%Y-%m-%d_%H-%M')}.{extension}"
 
 
 def clean_file_name(answer):
@@ -80,6 +81,20 @@ def save_lines(lines, kind, folder=REPORTS_FOLDER):
     return path
 
 
+def save_wrapped_page(chat, folder=REPORTS_FOLDER):
+    """Save the Wrapped HTML page in the reports folder, offer to open it, and return the saved path."""
+    path = free_path(folder, default_file_name("wrapped", extension="html"))
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(html_report.build_page(chat), encoding="utf-8")
+    print(f"Saved to {shown_path(path)}")
+
+    answer = input("Open it in your browser? (y/n) ").strip().lower()
+    if answer in ["y", "yes"]:
+        # Opens the local file; nothing is uploaded.
+        webbrowser.open(path.resolve().as_uri())
+    return path
+
+
 def show_lines(lines, kind):
     """Print the lines, then offer to export them; return False if the user wants to exit."""
     print()
@@ -104,13 +119,17 @@ def run_menu(chat):
         print(f"=== Telegram chat: {len(messages)} messages, {len(chat['calls'])} calls ===")
         print("1) Show all messages")
         print("2) Show statistics")
-        print("3) Exit")
-        choice = ask_choice("> ", ["1", "2", "3"])
+        print("3) Save the Wrapped page (HTML)")
+        print("4) Exit")
+        choice = ask_choice("> ", ["1", "2", "3", "4"])
 
         if choice == "1":
             keep_going = show_lines(report.message_lines(messages), "messages")
         elif choice == "2":
             keep_going = show_lines(report.stats_lines(chat), "statistics")
+        elif choice == "3":
+            save_wrapped_page(chat)
+            keep_going = True
         else:
             keep_going = False
 

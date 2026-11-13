@@ -2,6 +2,7 @@
 
 Turn a Telegram chat export into a report full of fun facts about the conversation: who texts more,
 who starts the conversations, how fast you reply, your longest streak, your favourite emoji, and more.
+Read it in the terminal, or save it as a "Wrapped"-style web page with a card for every fun fact.
 
 It works on **one chat at a time**: the JSON export of a single conversation from Telegram Desktop.
 Everything runs locally, and it needs only Python 3.9+ with no extra packages.
@@ -44,13 +45,29 @@ Double-texting (texting again after more than 1h without a reply):
 ## The menu
 
 ```
-1) Show all messages      every message in date order, as "Sender: text"
-2) Show statistics        the full fun facts report
-3) Exit
+1) Show all messages             every message in date order, as "Sender: text"
+2) Show statistics               the full fun facts report
+3) Save the Wrapped page (HTML)  the same fun facts as a page of cards and charts
+4) Exit
 ```
 
-After either view you can **export it to a file**, go back to the menu, or exit. Files are saved in
-`reports/`, named like `statistics_2026-11-13_22-15.txt` so a new save never overwrites an old one.
+After options 1 and 2 you can **export the text to a file**, go back to the menu, or exit. Everything
+is saved in `reports/`, named like `statistics_2026-11-13_22-15.txt`, so a new save never overwrites
+an old one.
+
+### The Wrapped page
+
+Option 3 saves `reports/wrapped_<date>.html` and offers to open it in your browser. It's one
+self-contained file with the same fun facts as the report:
+
+- a card per fun fact
+- charts for the busiest hour and messages per month
+- each person in their own color
+- a light and a dark theme, following your system
+
+The page loads nothing from the internet, so it works offline. To turn it into slides or a PDF,
+screenshot the cards or use your browser's **Print → Save as PDF**. The page contains your messages,
+so share it carefully.
 
 ## What's in the report
 
@@ -92,6 +109,7 @@ telegram_parser/
     loader.py                 reads the export into plain message and call dicts
     stats.py                  one small function per fun fact
     report.py                 turns the stats into the text report
+    html_report.py            turns the stats into the Wrapped web page
     emoji_finder.py           finds emoji in text (standard library only)
     text_tools.py             words, lowercase, Romanian diacritics
 docs/TELEGRAM_EXPORT_FORMAT.md  what's inside Telegram's export file

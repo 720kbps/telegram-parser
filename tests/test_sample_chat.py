@@ -32,6 +32,14 @@ class LoaderTest(unittest.TestCase):
         msg = {"text": ["see ", {"type": "bold", "text": "this"}, "!"]}
         self.assertEqual(extract_text(msg), "see this!")
 
+    def test_reads_chat_name(self):
+        """The chat's name comes from the export, with a fallback when it's missing."""
+        self.assertEqual(load_telegram(SAMPLE_PATH)["name"], "Sam")
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / "chatNastea.json"
+            path.write_text(json.dumps({"name": None, "messages": []}), encoding="utf-8")
+            self.assertEqual(load_telegram(path)["name"], "Telegram chat")
+
     def test_reads_edits_replies_and_sticker_emoji(self):
         """The loader keeps the id, edited flag, reply target and sticker emoji of each message."""
         by_id = {}
@@ -51,7 +59,7 @@ class LoaderTest(unittest.TestCase):
             {"type": "message", "date": "2023-01-02T10:00:00", "from": "New name", "from_id": "user1", "text": "b"},
         ]
         with tempfile.TemporaryDirectory() as folder:
-            path = Path(folder) / "chat.json"
+            path = Path(folder) / "chatNastea.json"
             path.write_text(json.dumps({"messages": raw}), encoding="utf-8")
             messages = load_telegram(path)["messages"]
 
