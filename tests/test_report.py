@@ -72,10 +72,14 @@ class StatsReportTest(unittest.TestCase):
             "Streaks:",
             "Longest silences:",
             "Lost information",
+            "Most repeated messages:",
+            "Tracked words",
             "Emoji in messages: 3 used",
+            "Emoji per 100 messages: 30.0",
             "Stickers: 1 sent",
             "Calls: 2",
             "Busiest days:",
+            "Quietest days",
             "Messages per month:",
         ]
         for heading in headings:

@@ -1,0 +1,7 @@
+# Words to count in the chat. Copy this file to tracked_words.txt and edit it.
+# One word per line. Blank lines and lines starting with # are ignored.
+# Case and Romanian diacritics don't matter: "Mulțumesc" also matches "multumesc".
+# End a word with * to match everything that starts with it: capy* matches capy, capybara, capybaras.
+capy*
+twin
+

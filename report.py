@@ -1,4 +1,5 @@
 import stats
+from pathlib import Path
 
 KIND_LABELS = {
     "voice_message": "Voice messages",
@@ -81,11 +82,77 @@ def voice_and_video_lines(messages):
     return lines
 
 
+# Media kinds worth naming in a day's description, in the order they're shown: (singular, plural).
+DAY_MEDIA_LABELS = {
+    "voice_message": ("voice message", "voice messages"),
+    "video_message": ("round video", "round videos"),
+    "sticker": ("sticker", "stickers"),
+    "photo": ("photo", "photos"),
+    "animation": ("GIF", "GIFs"),
+    "video_file": ("video", "videos"),
+}
+
+
+def count_with_label(count, singular, plural):
+    """Return text like "1 photo" or "3 photos"."""
+    if count == 1:
+        return f"{count} {singular}"
+    return f"{count} {plural}"
+
+
+def day_media_parts(kind_counts):
+    """Return a short "2 stickers"-style text for each notable media kind that was sent at least once."""
+    parts = []
+    for kind, labels in DAY_MEDIA_LABELS.items():
+        count = kind_counts[kind]
+        if count > 0:
+            parts.append(count_with_label(count, labels[0], labels[1]))
+    return parts
+
+
+def day_description(messages, day):
+    """Describe one day in a single line: shares, peak hour, media, top words and top emoji."""
+    summary = stats.day_summary(messages, day)
+    parts = []
+    for sender, count in summary["per_person"]:
+        percent = count / summary["total"] * 100
+        parts.append(f"{sender} {percent:.0f}%")
+    if summary["peak_hour"] is not None:
+        parts.append(f"peak {summary['peak_hour']:02d}:00")
+    parts.extend(day_media_parts(summary["kinds"]))
+    if summary["words"]:
+        parts.append("words: " + ", ".join(summary["words"]))
+    if summary["emoji"]:
+        parts.append("emoji: " + " ".join(summary["emoji"]))
+    return " · ".join(parts)
+
+
 def top_days_lines(messages):
-    """Describe the busiest days by number of messages."""
+    """Describe the busiest days by number of messages, with a short description of each."""
     lines = ["Busiest days:"]
-    for day, count in stats.top_days(messages):
+    days = stats.top_days(messages)
+    day_list = []
+    for day, _ in days:
+        day_list.append(day)
+    # Grouping first means each day is summarized from its own messages, not the whole chat.
+    grouped = stats.messages_on_days(messages, day_list)
+    for day, count in days:
         lines.append(f"  {day:%d %b %Y}: {count} messages")
+        lines.append("      " + day_description(grouped[day], day))
+    return lines
+
+
+def quietest_days_lines(messages):
+    """Describe the worst days: the days you talked least, not counting days without any messages."""
+    lines = ["Quietest days (fewest messages, not counting days with none):"]
+    days = stats.quietest_days(messages)
+    if not days:
+        lines.append("  No messages to measure.")
+        return lines
+
+    for day, count in days:
+        noun = "message" if count == 1 else "messages"
+        lines.append(f"  {day:%d %b %Y}: {count} {noun}")
     return lines
 
 
@@ -114,6 +181,35 @@ def hour_histogram_lines(hour_counts):
             width = 1
         bar = "█" * width
         lines.append(f"  {hour:02d}:00 {bar.ljust(HOUR_BAR_WIDTH)} {count}")
+    return lines
+
+
+# Repeated messages longer than this many characters are cut short so each entry fits on one line.
+REPEATED_TEXT_WIDTH = 40
+
+
+def short_one_line(text, width):
+    """Put the text on one line and cut it to `width` characters, ending with "…" if it was longer."""
+    one_line = " ".join(text.split())
+    if len(one_line) <= width:
+        return one_line
+    return one_line[:width - 1] + "…"
+
+
+def repeated_message_lines(messages):
+    """Describe the messages sent most often with the same text, and who sent them."""
+    lines = ["Most repeated messages:"]
+    repeated = stats.repeated_messages(messages)
+    if not repeated:
+        lines.append("  Nothing was sent more than once.")
+        return lines
+
+    for number, entry in enumerate(repeated, start=1):
+        senders = []
+        for sender, count in entry["per_person"].most_common():
+            senders.append(f"{sender} {count}")
+        text = short_one_line(entry["text"], REPEATED_TEXT_WIDTH)
+        lines.append(f"  {number}. \"{text}\" × {entry['count']} ({', '.join(senders)})")
     return lines
 
 
@@ -172,6 +268,57 @@ def emoji_lines(messages):
     return lines
 
 
+def emoji_day_line(totals):
+    """Format one day's emoji totals, like "05 Jan 2023: 120 emoji in 200 messages (0.6 per message)"."""
+    noun = "message" if totals["messages"] == 1 else "messages"
+    rate = stats.emoji_per_message(totals)
+    return f"  {totals['day']:%d %b %Y}: {totals['emoji']} emoji in {totals['messages']} {noun} ({rate:.1f} per message)"
+
+
+def emoji_day_lines(messages):
+    """Describe the most emoji-heavy days."""
+    days = stats.emoji_heavy_days(messages)
+    # Without the fallback every listed day has enough messages, so checking one tells which case it is.
+    if days[0]["messages"] >= stats.MIN_MESSAGES_PER_DAY:
+        which_days = f"days with {stats.MIN_MESSAGES_PER_DAY}+ messages"
+    else:
+        which_days = f"all days, since none had {stats.MIN_MESSAGES_PER_DAY}+ messages"
+    lines = [f"Most emoji-heavy days ({which_days}):"]
+
+    heavy_found = False
+    for totals in days:
+        # A day without emoji isn't emoji-heavy, even if it's among the top few.
+        if totals["emoji"] > 0:
+            lines.append(emoji_day_line(totals))
+            heavy_found = True
+    if not heavy_found:
+        lines.append("  No day with enough messages had any emoji.")
+    return lines
+
+
+def emoji_ratio_lines(messages):
+    """Describe how many emoji are typed per 100 messages, overall and per person, and the most emoji-heavy days."""
+    ratio = stats.emoji_ratio(messages)
+    overall = ratio["overall"]
+    if overall["messages"] == 0:
+        return ["Emoji per 100 messages: no messages"]
+
+    lines = [f"Emoji per 100 messages: {overall['emoji'] / overall['messages'] * 100:.1f}"]
+    rows = []
+    for sender, counts in ratio["per_person"].items():
+        rows.append((counts["emoji"] / counts["messages"] * 100, sender))
+    # Sort on the ratio only, so a tie keeps the order people first appear in.
+    rows.sort(key=lambda row: row[0], reverse=True)
+    for per_hundred, sender in rows:
+        lines.append(f"  {sender}: {per_hundred:.1f}")
+
+    if overall["emoji"] == 0:
+        lines.append("  No emoji typed at all, so there are no emoji-heavy days.")
+        return lines
+    lines.extend(emoji_day_lines(messages))
+    return lines
+
+
 def sticker_lines(messages):
     """Describe how many stickers were sent, the top sticker emoji and each person's favourite."""
     counts = stats.sticker_emoji_counts(messages)
@@ -219,6 +366,43 @@ def starters_lines(messages):
     for count, sender in rows:
         percent = count / total * 100
         lines.append(f"  {sender}: {count} ({percent:.1f}%)")
+    return lines
+
+
+# The user's own word list, kept next to this file and out of git because it may be private.
+TRACKED_WORDS_PATH = Path(__file__).parent / "tracked_words.txt"
+
+
+def load_tracked_words(path):
+    """Read the tracked words file and return its entries, or an empty list if it does not exist."""
+    path = Path(path)
+    if not path.exists():
+        return []
+    with open(path, encoding="utf-8") as file:
+        return stats.parse_tracked_words(file.read().splitlines())
+
+
+def format_tracked_word(result):
+    """Format one tracked word as "label: total (Alex 30, Sam 12), first used 05 Jan 2023"."""
+    line = f"  {result['entry']['label']}: {result['total']}"
+    if result["total"] == 0:
+        return line
+
+    people = []
+    for sender, count in result["per_person"].most_common():
+        people.append(f"{sender} {count}")
+    return f"{line} ({', '.join(people)}), first used {result['first_used']:%d %b %Y}"
+
+
+def tracked_word_lines(messages, path=TRACKED_WORDS_PATH):
+    """Describe how often each word from the tracked words file was used, in the file's order."""
+    entries = load_tracked_words(path)
+    if not entries:
+        return ["Tracked words: none set up (copy tracked_words.example.txt to tracked_words.txt and add words)"]
+
+    lines = ["Tracked words:"]
+    for result in stats.tracked_word_counts(messages, entries):
+        lines.append(format_tracked_word(result))
     return lines
 
 
@@ -384,10 +568,14 @@ def stats_lines(chat):
         streak_lines(messages),
         silence_lines(messages),
         voice_and_video_lines(messages),
+        repeated_message_lines(messages),
+        tracked_word_lines(messages),
         emoji_lines(messages),
+        emoji_ratio_lines(messages),
         sticker_lines(messages),
         calls_lines(chat["calls"]),
         top_days_lines(messages),
+        quietest_days_lines(messages),
         months_lines(messages),
     ]
     lines = []

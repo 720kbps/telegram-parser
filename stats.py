@@ -3,6 +3,7 @@ from collections import Counter
 from datetime import timedelta
 
 from emoji_finder import find_emoji
+from text_tools import normalize_text, split_words
 
 # A message after this much silence starts a new conversation instead of replying.
 CONVERSATION_GAP = timedelta(hours=6)
@@ -51,6 +52,68 @@ def top_days(messages, how_many=10):
     return counts.most_common(how_many)
 
 
+def quietest_days(messages, how_many=5):
+    """Return the days with the fewest messages, quietest first, counting only days with at least one."""
+    counts = Counter()
+    for msg in messages:
+        counts[msg["date"].date()] += 1
+    # Sort by date first; the sort by count is stable, so on a tie the earlier day comes first.
+    days = sorted(counts.items())
+    days.sort(key=lambda item: item[1])
+    return days[:how_many]
+
+
+def messages_on_days(messages, days):
+    """Group the messages sent on the given days, in one pass, as {day: [messages]}."""
+    grouped = {}
+    for day in days:
+        grouped[day] = []
+    for msg in messages:
+        day = msg["date"].date()
+        if day in grouped:
+            grouped[day].append(msg)
+    return grouped
+
+
+def top_long_words(messages, how_many=3, min_length=5):
+    """Return the most used words that have at least min_length letters, most used first."""
+    counts = Counter()
+    for msg in messages:
+        # Long words are a cheap way to skip filler like "the", "si" or "ok".
+        for word in split_words(msg["text"]):
+            if len(word) >= min_length:
+                counts[word] += 1
+    top = []
+    for word, _ in counts.most_common(how_many):
+        top.append(word)
+    return top
+
+
+def day_summary(messages, day):
+    """Summarize one calendar day: who wrote how much, the peak hour, media kinds, top words and emoji."""
+    day_messages = []
+    for msg in messages:
+        if msg["date"].date() == day:
+            day_messages.append(msg)
+
+    summary = {
+        "total": len(day_messages),
+        "per_person": messages_per_person(day_messages).most_common(),
+        "peak_hour": None,
+        "kinds": Counter(),
+        "words": top_long_words(day_messages),
+        "emoji": [],
+    }
+    hours = busiest_hours(day_messages).most_common(1)
+    if hours:
+        summary["peak_hour"] = hours[0][0]
+    for msg in day_messages:
+        summary["kinds"][msg["kind"]] += 1
+    for emoji, _ in emoji_counts(day_messages)["overall"].most_common(3):
+        summary["emoji"].append(emoji)
+    return summary
+
+
 def messages_per_month(messages):
     """Count messages per month, sorted from oldest to newest."""
     counts = Counter()
@@ -58,6 +121,46 @@ def messages_per_month(messages):
         month = msg["date"].strftime("%Y-%m")
         counts[month] += 1
     return sorted(counts.items())
+
+
+# Punctuation at the end of a message doesn't change what it says, so "ok", "Ok." and "OK!" match.
+TRAILING_PUNCTUATION = ".,!?…"
+
+
+def normalize_message(text):
+    """Return the text in the form used to compare repeated messages."""
+    # split() drops whitespace at both ends and turns inner runs of spaces and newlines into one space.
+    joined = " ".join(normalize_text(text).split())
+    # Strip again so "ok !" also becomes "ok".
+    return joined.rstrip(TRAILING_PUNCTUATION).strip()
+
+
+def repeated_messages(messages, how_many=10):
+    """Return the texts sent at least twice, most repeated first, with each one's count and senders."""
+    found = {}
+    for msg in messages:
+        key = normalize_message(msg["text"])
+        if key == "":
+            continue
+        entry = found.get(key)
+        if entry is None:
+            entry = {"count": 0, "per_person": Counter(), "spellings": Counter()}
+            found[key] = entry
+        entry["count"] += 1
+        entry["per_person"][msg["sender"]] += 1
+        entry["spellings"][msg["text"].strip()] += 1
+
+    repeated = []
+    for entry in found.values():
+        if entry["count"] < 2:
+            continue
+        # Show the spelling people used most; most_common keeps the first one seen on a tie.
+        shown = entry["spellings"].most_common(1)[0][0]
+        repeated.append({"text": shown, "count": entry["count"], "per_person": entry["per_person"]})
+    # The dict keeps the order texts were first sent (messages come oldest first), and the
+    # sort is stable, so on a tie the text that was first sent earliest stays ahead.
+    repeated.sort(key=lambda item: item["count"], reverse=True)
+    return repeated[:how_many]
 
 
 def busiest_hours(messages):
@@ -102,6 +205,60 @@ def emoji_counts(messages):
     return result
 
 
+# A day needs at least this many messages to be one of the most emoji-heavy days,
+# so a day with only a couple of messages can't win by accident.
+MIN_MESSAGES_PER_DAY = 50
+
+
+def emoji_ratio(messages):
+    """Count the emoji typed in message text and the messages sent, overall and per person."""
+    result = {"overall": {"emoji": 0, "messages": 0}, "per_person": {}}
+    for msg in messages:
+        found = len(find_emoji(msg["text"]))
+        # Add everyone, so a person who never uses emoji still shows up with 0.
+        person = result["per_person"].setdefault(msg["sender"], {"emoji": 0, "messages": 0})
+        person["emoji"] += found
+        person["messages"] += 1
+        result["overall"]["emoji"] += found
+        result["overall"]["messages"] += 1
+    return result
+
+
+def emoji_per_day(messages):
+    """Count the emoji typed and the messages sent on each day, oldest day first."""
+    totals_by_day = {}
+    for msg in messages:
+        day = msg["date"].date()
+        totals = totals_by_day.get(day)
+        if totals is None:
+            totals = {"day": day, "emoji": 0, "messages": 0}
+            totals_by_day[day] = totals
+        totals["emoji"] += len(find_emoji(msg["text"]))
+        totals["messages"] += 1
+    return sorted(totals_by_day.values(), key=lambda totals: totals["day"])
+
+
+def emoji_per_message(totals):
+    """Return the emoji per message for a day's {"emoji", "messages"} totals."""
+    return totals["emoji"] / totals["messages"]
+
+
+def emoji_heavy_days(messages, how_many=3):
+    """Return the days with the most emoji per message, among days with enough messages."""
+    days = emoji_per_day(messages)
+    busy_days = []
+    for totals in days:
+        if totals["messages"] >= MIN_MESSAGES_PER_DAY:
+            busy_days.append(totals)
+    # A short chat may have no day that busy; using every day still gives an answer.
+    if not busy_days:
+        busy_days = days
+
+    # The days are oldest first and Python's sort is stable (also with reverse), so ties keep the earlier day.
+    heaviest = sorted(busy_days, key=emoji_per_message, reverse=True)
+    return heaviest[:how_many]
+
+
 def sticker_emoji_counts(messages):
     """Count the emoji linked to each sticker, overall and per person, plus stickers without one."""
     result = {"overall": Counter(), "per_person": {}, "total": 0, "without_emoji": 0}
@@ -138,6 +295,67 @@ def conversation_starters(messages):
             counts[msg["sender"]] += 1
         previous = msg
     return counts
+
+
+def parse_tracked_words(lines):
+    """Turn raw lines from the tracked words file into entries like {"label", "word", "prefix"}."""
+    entries = []
+    for line in lines:
+        label = line.strip()
+        if label == "" or label.startswith("#"):
+            continue
+        prefix = label.endswith("*")
+        word = normalize_text(label.rstrip("*").strip())
+        # A line that is only "*" would match every word, so it is skipped.
+        if word == "":
+            continue
+        entries.append({"label": label, "word": word, "prefix": prefix})
+    return entries
+
+
+def build_word_lookup(entries):
+    """Group entry positions by whole word and by prefix, so each message word is checked quickly."""
+    whole = {}
+    prefixes = {}
+    for index, entry in enumerate(entries):
+        if entry["prefix"]:
+            prefixes.setdefault(entry["word"], []).append(index)
+        else:
+            whole.setdefault(entry["word"], []).append(index)
+    prefix_lengths = sorted(set(len(prefix) for prefix in prefixes))
+    return whole, prefixes, prefix_lengths
+
+
+def matching_entries(word, whole, prefixes, prefix_lengths):
+    """Return the positions of every entry that matches one normalized word."""
+    matches = list(whole.get(word, []))
+    for length in prefix_lengths:
+        if len(word) < length:
+            break
+        matches.extend(prefixes.get(word[:length], []))
+    return matches
+
+
+def tracked_word_counts(messages, entries):
+    """Count each entry overall and per sender, with the date it was first used (or None)."""
+    results = []
+    for entry in entries:
+        results.append({"entry": entry, "total": 0, "per_person": Counter(), "first_used": None})
+    whole, prefixes, prefix_lengths = build_word_lookup(entries)
+
+    # Each message is split once and every word is looked up, instead of scanning the chat per entry.
+    for msg in messages:
+        if not msg["text"]:
+            continue
+        for word in split_words(msg["text"]):
+            for index in matching_entries(word, whole, prefixes, prefix_lengths):
+                result = results[index]
+                result["total"] += 1
+                result["per_person"][msg["sender"]] += 1
+                day = msg["date"].date()
+                if result["first_used"] is None or day < result["first_used"]:
+                    result["first_used"] = day
+    return results
 
 
 def talked_days(messages):

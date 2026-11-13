@@ -81,12 +81,20 @@ def emoji_length(text, start):
     return end - start
 
 
+# The report looks at the emoji of every message several times (counts, ratio, per day), and the
+# character-by-character scan is the slow part, so each text's result is remembered after the first time.
+FOUND_CACHE = {}
+
+
 def find_emoji(text):
     """Return every emoji in the text in order, with the U+FE0F selector removed so "❤️" and "❤" match."""
-    found = []
     if not POSSIBLE_EMOJI.search(text):
-        return found
+        return []
+    if text in FOUND_CACHE:
+        # Return a copy so a caller changing the list can't change the remembered result.
+        return list(FOUND_CACHE[text])
 
+    found = []
     i = 0
     while i < len(text):
         length = emoji_length(text, i)
@@ -95,4 +103,5 @@ def find_emoji(text):
             continue
         found.append(text[i:i + length].replace(VARIATION_SELECTOR, ""))
         i += length
-    return found
+    FOUND_CACHE[text] = found
+    return list(found)

@@ -45,12 +45,25 @@ python3 -m unittest
 
 No third-party packages needed (Python 3.9+).
 
+### Tracked words
+
+To count specific words, copy the example file and put one word per line in it:
+
+```bash
+cp tracked_words.example.txt tracked_words.txt
+```
+
+A word ending in `*` also matches longer words that start with it (`capy*` matches "capybara").
+Case and Romanian diacritics don't matter. `tracked_words.txt` is git-ignored, so your list stays
+private.
+
 ## How it's organised
 
 - `telegram_loader.py` turns the Telegram export into `{"messages": [...], "calls": [...]}`, made of
   plain dicts. The full list of fields is in the spec linked below.
 - `stats.py` has one small function per fun fact. Each takes the messages (or calls) list.
 - `emoji_finder.py` finds emoji in message text using only the standard library.
+- `text_tools.py` splits text into words, lowercased and with Romanian diacritics flattened.
 - `report.py` turns messages and stats into lines of text: the message list and the statistics report.
 - `main.py` is the menu (TUI). It shows those lines and saves them to a file.
 
@@ -68,13 +81,14 @@ and every stat works on it unchanged.
 - [x] Messages per person and the percentage difference
 - [x] Number of voice / round video messages ("lost information")
 - [x] Top 10 days by number of messages
-- [ ] Short description for each top day
+- [x] Short description for each top day
 - [x] Messages per month
 - [ ] Number of memes sent on Instagram
-- [ ] Most repeated messages and how often they appear
-- [ ] Stats for specific words
+- [x] Most repeated messages and how often they appear
+- [x] Stats for specific words (see "Tracked words" above)
 - [x] Most used emoji in messages, overall and each person's favourites
-- [ ] Messages-to-emoji ratio (and the worst days)
+- [x] Messages-to-emoji ratio, and the most emoji-heavy days
+- [x] Worst days: the days with the fewest messages
 
 ### How you talk (dates, senders and media only, no message text needed)
 

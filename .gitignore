@@ -175,3 +175,4 @@ data/
 chatExport/
 .DS_Store
 exports/
+tracked_words.txt
