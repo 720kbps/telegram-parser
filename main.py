@@ -1,6 +1,8 @@
 """Text menu: load a Telegram chat export, then show the messages or the fun facts, or save them to reports/."""
 
 import argparse
+import os
+import re
 import webbrowser
 from datetime import datetime
 from pathlib import Path
@@ -137,19 +139,51 @@ def run_menu(chat):
             return
 
 
+def clean_typed_path(text):
+    """Turn a typed or dragged-in path into a plain one, without surrounding quotes or backslash escapes."""
+    path = text.strip()
+    # Dragging a file into a terminal wraps the path in quotes on Windows and some Linux terminals...
+    if len(path) >= 2 and path[0] == path[-1] and path[0] in "\"'":
+        path = path[1:-1]
+    # ...and puts a backslash before spaces and brackets on macOS. Windows paths use backslashes
+    # as folder separators, so they're left alone there.
+    if os.name != "nt":
+        path = re.sub(r"\\(.)", r"\1", path)
+    return path
+
+
+def find_export_file(text):
+    """Return the export file to load from what the user typed, accepting the export folder too."""
+    path = Path(clean_typed_path(text)).expanduser()
+    # Telegram saves the export as a folder with result.json inside, and people often drag the folder.
+    if path.is_dir() and (path / "result.json").exists():
+        return path / "result.json"
+    return path
+
+
 def main():
     """Load the chat export given on the command line (or ask for it) and start the menu."""
     parser = argparse.ArgumentParser(description="Fun facts from a Telegram chat export.")
-    parser.add_argument("export_path", nargs="?", help="path to the JSON file from Telegram Desktop")
+    parser.add_argument("export_path", nargs="?", help="the result.json from Telegram Desktop, or its folder")
     args = parser.parse_args()
 
     try:
-        export_path = args.export_path or input("Path to the Telegram chat export (.json): ").strip()
+        typed = args.export_path
+        if not typed:
+            print("Drag your Telegram export (the result.json file or its folder) into this window,")
+            typed = input("then press Enter: ")
+        export_file = find_export_file(typed)
+        if export_file.is_dir():
+            # Usually an HTML export: the folder has messages.html instead of result.json.
+            print(f"There's no result.json in {export_file}.")
+            print("Export the chat again with Format: Machine-readable JSON.")
+            return
         try:
-            chat = load_telegram(Path(export_path).expanduser())
-        except (FileNotFoundError, ValueError) as error:
-            # ValueError covers both broken JSON and a full-account export.
-            print(f"Could not load the chat: {error}")
+            chat = load_telegram(export_file)
+        except (OSError, ValueError) as error:
+            # OSError: the file is missing or it's a folder without result.json.
+            # ValueError: broken JSON, or a whole-account export instead of a single chat.
+            print(f"Could not load the chat from {export_file}: {error}")
             return
 
         if not chat["messages"]:

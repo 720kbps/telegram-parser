@@ -1,75 +1,131 @@
-# telegram-parser
+# Telegram Wrapped
 
-Turn a Telegram chat export into a report full of fun facts about the conversation: who texts more,
-who starts the conversations, how fast you reply, your longest streak, your favourite emoji, and more.
-Read it in the terminal, or save it as a "Wrapped"-style web page with a card for every fun fact.
+Turn any Telegram chat into a "Wrapped"-style page of fun facts: who texts more, who starts the
+conversations, how fast you each reply, your longest streak, your busiest hour, your favourite emoji,
+and more.
 
-It works on **one chat at a time**: the JSON export of a single conversation from Telegram Desktop.
-Everything runs locally, and it needs only Python 3.9+ with no extra packages.
+Everything runs **on your own computer**. Your messages are never uploaded anywhere.
 
-```
-===== Conversations =====
-
-Who starts conversations (first message after 6+ hours of silence): 3 conversations
-  Alex: 3 (100.0%)
-  Sam: 0 (0.0%)
-
-Reply time:
-  Sam: usually 1m 7s, on average 1m 39s (3 replies)
-  Alex: usually 22s, on average 22s (1 reply)
-
-Double-texting (texting again after more than 1h without a reply):
-  Alex: 1 time, longest wait 11h 46m before texting again (06 Jan 2023)
-  Sam: 0 times
-```
-<sub>From the fake chat in `samples/`.</sub>
+---
 
 ## Quick start
 
-1. **Export a chat.** In Telegram Desktop, open the chat, then **⋮ → Export chat history**.
-   Choose **JSON** as the format. You can untick photos, videos and files, since only the `.json`
-   file is used.
-2. **Put the export in the project folder**, e.g. in `chatExport/`. That folder is git-ignored.
-3. **Run it:**
+It takes about 5 minutes, and you only need to do steps 1 and 2 once.
 
-   ```bash
-   python3 main.py chatExport/result.json
-   ```
+### 1. Install Python (once)
 
-   Without a path, it asks for one. To try it first on the fake chat:
+- **Mac:** open **Terminal** (press `⌘ Space`, type `Terminal`, press Enter), then type `python3 --version`
+  and press Enter. If a window asks to install "command line developer tools", click **Install** and
+  wait for it to finish. You're done when it prints `Python 3.9` or higher.
+- **Windows:** download Python from [python.org/downloads](https://www.python.org/downloads/) and run
+  the installer. On the first screen, **tick "Add python.exe to PATH"**. Also install
+  [Git for Windows](https://git-scm.com/download/win), keeping all the default options.
 
-   ```bash
-   python3 main.py samples/sample_chat.json
-   ```
+### 2. Export your chat from Telegram
+
+Exporting only works in **Telegram Desktop**, the computer app from
+[desktop.telegram.org](https://desktop.telegram.org). The phone apps can't export chats.
+
+1. Open the chat you want.
+2. Click the **⋮** (three dots) in the top-right corner, then **Export chat history**.
+3. In the window that opens:
+   - **Untick all the media:** Photos, Videos, Voice messages, Video messages, Stickers, GIFs and
+     Files. Only the text is needed, and without media the export is small and quick.
+   - If there's a **Size limit** slider, drag it **all the way to the right**.
+   - Set **Format** to **Machine-readable JSON**, not HTML.
+   - Leave the dates on the full range, from the first message to now.
+4. Click **Export**. When it's done, click **Show my data**. You'll get a folder like
+   `ChatExport_2024-05-16` with a file called **`result.json`** inside. Keep that window open.
+
+### 3. Download and start it
+
+Copy the line for your computer, paste it into the terminal and press Enter.
+
+**Mac / Linux** (in Terminal):
+
+```bash
+git clone https://github.com/720kbps/telegram-parser.git && cd telegram-parser && python3 main.py
+```
+
+**Windows** (open **PowerShell** from the Start menu):
+
+```powershell
+git clone https://github.com/720kbps/telegram-parser.git; cd telegram-parser; py main.py
+```
+
+### 4. Get your Wrapped
+
+1. It asks for your export: **drag the `ChatExport_...` folder** (or the `result.json` inside it)
+   into the terminal window, then press **Enter**.
+2. Type **`3`** and press Enter to save the Wrapped page.
+3. Type **`y`** and press Enter to open it in your browser. 🎉
+
+The page is saved in the `telegram-parser/reports/` folder, so you can open it again later.
+
+**Next time**, open the terminal and run just this:
+
+```bash
+cd telegram-parser && python3 main.py
+```
+
+On Windows, use `cd telegram-parser; py main.py` instead.
+
+<details>
+<summary><b>Can't use Git? Download a ZIP instead</b></summary>
+
+1. On this project's GitHub page, click the green **Code** button, then **Download ZIP**, and unzip it.
+2. Open a terminal in that folder:
+   - **Mac:** in Terminal, type `cd ` (with a space at the end), drag the unzipped folder into the
+     window, and press Enter.
+   - **Windows:** open the unzipped folder, click the address bar at the top, type `powershell` and
+     press Enter.
+3. Run `python3 main.py` on a Mac, or `py main.py` on Windows.
+
+</details>
+
+<details>
+<summary><b>Something went wrong?</b></summary>
+
+- **"command not found: git" or "python3 not found":** go back to step 1. On Windows, close and
+  reopen PowerShell after installing.
+- **"has no 'messages' list":** you exported your whole account instead of one chat. Use **Export
+  chat history** from inside the chat, as in step 2.
+- **"There's no result.json" or "Expecting value":** the chat was exported as HTML. Export it again
+  with **Format: Machine-readable JSON**.
+- **"No such file or directory":** drag the folder or file into the window instead of typing its
+  path.
+
+</details>
+
+---
 
 ## The menu
 
 ```
 1) Show all messages             every message in date order, as "Sender: text"
-2) Show statistics               the full fun facts report
+2) Show statistics               the full fun facts report, as text
 3) Save the Wrapped page (HTML)  the same fun facts as a page of cards and charts
 4) Exit
 ```
 
-After options 1 and 2 you can **export the text to a file**, go back to the menu, or exit. Everything
-is saved in `reports/`, named like `statistics_2026-11-13_22-15.txt`, so a new save never overwrites
-an old one.
+After options 1 and 2 you can also save the text to a file. Everything is saved in `reports/`, named
+with the date and time (e.g. `statistics_2026-11-13_22-15.txt`), so a new save never overwrites an
+old one.
 
 ### The Wrapped page
 
-Option 3 saves `reports/wrapped_<date>.html` and offers to open it in your browser. It's one
-self-contained file with the same fun facts as the report:
+One self-contained web page with:
 
-- a card per fun fact
+- a card for every fun fact
 - charts for the busiest hour and messages per month
 - each person in their own color
-- a light and a dark theme, following your system
+- light and dark themes that follow your computer's setting
 
-The page loads nothing from the internet, so it works offline. To turn it into slides or a PDF,
-screenshot the cards or use your browser's **Print → Save as PDF**. The page contains your messages,
-so share it carefully.
+It loads nothing from the internet, so it also works offline. To turn it into slides or a PDF,
+screenshot the cards or use your browser's **Print → Save as PDF**. The page includes some of your
+messages (the very first one and the most repeated ones), so share it carefully.
 
-## What's in the report
+## What's in it
 
 | Section | What it shows |
 |---|---|
@@ -80,28 +136,31 @@ so share it carefully.
 | **What you write** | Most repeated messages, your tracked words, most used emoji, emoji per 100 messages |
 | **Days and months** | Busiest days (each with a short description), quietest days, messages per month |
 
-### Tracked words
+### Count your own words (optional)
 
-To count specific words, create your own list from the example and put one word per line in it:
+To count how often certain words come up, make your own word list from the example. On a Mac, run:
 
 ```bash
 cp tracked_words.example.txt tracked_words.txt
 ```
 
-A word ending in `*` also matches longer words, e.g. `capy*` matches "capybara". Case and Romanian
-diacritics don't matter: "și", "şi" and "si" all count as the same word.
+On Windows, copy the file in File Explorer and rename the copy to `tracked_words.txt`.
+
+Then open `tracked_words.txt` and put one word per line. A word ending in `*` also matches longer
+words, e.g. `capy*` matches "capybara". Capital letters and Romanian diacritics don't matter: "și",
+"şi" and "si" all count as the same word.
 
 ## Privacy
 
-Chat exports are private. The project keeps them out of git:
+- The program only reads the export file you give it. Nothing is sent anywhere.
+- Your exports, saved reports and word list are kept out of git, so they can't be uploaded by
+  accident: `chatExport/`, `data/`, `reports/` and `tracked_words.txt`.
 
-- `chatExport/` and `data/`: put your exports here
-- `reports/`: saved reports, which can contain your messages
-- `tracked_words.txt`: your word list
+---
 
-Nothing is uploaded anywhere. The parser only reads the file you give it.
+## For developers
 
-## Project layout
+No third-party packages are needed. The project uses only Python 3.9+ and its standard library.
 
 ```
 main.py                       the menu: load a chat, show or save the results
@@ -110,7 +169,7 @@ telegram_parser/
     stats.py                  one small function per fun fact
     report.py                 turns the stats into the text report
     html_report.py            turns the stats into the Wrapped web page
-    emoji_finder.py           finds emoji in text (standard library only)
+    emoji_finder.py           finds emoji in text
     text_tools.py             words, lowercase, Romanian diacritics
 docs/TELEGRAM_EXPORT_FORMAT.md  what's inside Telegram's export file
 samples/sample_chat.json      a small fake chat used by the tests and demos
@@ -120,7 +179,11 @@ tests/                        unit tests
 Settings such as the 6-hour conversation gap or the 1-hour double-text wait are constants at the top
 of `telegram_parser/stats.py`.
 
-## Tests
+To try it on the fake chat and run the tests:
+
+```bash
+python3 main.py samples/sample_chat.json
+```
 
 ```bash
 python3 -m unittest

@@ -93,6 +93,38 @@ class SaveLinesTest(unittest.TestCase):
             self.assertTrue(path.exists())
 
 
+class TypedPathTest(unittest.TestCase):
+    def test_plain_path_unchanged(self):
+        """A normally typed path is only trimmed."""
+        self.assertEqual(main.clean_typed_path("  chatExport/result.json \n"), "chatExport/result.json")
+
+    def test_quotes_removed(self):
+        """Quotes added when dragging a file into the terminal are removed."""
+        self.assertEqual(main.clean_typed_path('"/tmp/My Chat/result.json"'), "/tmp/My Chat/result.json")
+        self.assertEqual(main.clean_typed_path("'/tmp/My Chat/result.json' "), "/tmp/My Chat/result.json")
+
+    @unittest.skipIf(main.os.name == "nt", "macOS-style escapes don't apply on Windows")
+    def test_macos_escapes_removed(self):
+        """Backslashes macOS puts before spaces and brackets are removed."""
+        typed = "/Users/me/Downloads/Telegram\\ Desktop/ChatExport\\ \\(1\\)/result.json "
+        self.assertEqual(main.clean_typed_path(typed), "/Users/me/Downloads/Telegram Desktop/ChatExport (1)/result.json")
+
+    def test_folder_finds_result_json(self):
+        """Dragging the export folder loads the result.json inside it."""
+        with tempfile.TemporaryDirectory() as temp:
+            folder = Path(temp) / "ChatExport 2024"
+            folder.mkdir()
+            (folder / "result.json").write_text("{}", encoding="utf-8")
+            self.assertEqual(main.find_export_file(f'"{folder}"'), folder / "result.json")
+
+    def test_file_path_kept(self):
+        """A path to a file is used as it is."""
+        with tempfile.TemporaryDirectory() as temp:
+            path = Path(temp) / "chat.json"
+            path.write_text("{}", encoding="utf-8")
+            self.assertEqual(main.find_export_file(str(path)), path)
+
+
 class SaveWrappedPageTest(unittest.TestCase):
     def test_html_name_has_extension(self):
         """The Wrapped page's default name ends in .html."""
